@@ -1,0 +1,327 @@
+<title>三平台週報產生器</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout：上方工具列（上傳／選週／複製），下方一張報表紙：合計 → 三平台卡片 → 三張 Top 5 → 三個操作方向 → 計算說明 */
+:root{
+  --bg:#eef1f4; --paper:#ffffff; --ink:#17202a; --muted:#5b6876; --line:#dbe1e7; --chip:#edf1f5;
+  --accent:#1d4a73; --momo:#c2185b; --web:#00796b; --shopee:#d84f0c;
+  --up:#1b7a3a; --down:#c42b2b; --upbg:#e3f4e8; --downbg:#fbe6e6;
+  --f-display:"Noto Serif TC","Songti TC",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,"SFMono-Regular",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --paper:#182029; --ink:#e5eaf0; --muted:#9aa7b5; --line:#2a3440; --chip:#212b36;
+  --accent:#8db8e3; --momo:#f06a9b; --web:#4cb8a9; --shopee:#ff8c4d;
+  --up:#62d18b; --down:#ff7f7f; --upbg:#173826; --downbg:#3d1d1f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --paper:#182029; --ink:#e5eaf0; --muted:#9aa7b5; --line:#2a3440; --chip:#212b36;
+  --accent:#8db8e3; --momo:#f06a9b; --web:#4cb8a9; --shopee:#ff8c4d;
+  --up:#62d18b; --down:#ff7f7f; --upbg:#173826; --downbg:#3d1d1f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{margin:0;text-wrap:balance}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* 工具列 */
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
+.drop{flex:1 1 320px;min-width:0;display:flex;align-items:center;gap:12px;padding:12px 16px;border:1.5px dashed var(--line);
+  border-radius:10px;background:var(--paper);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent)}
+.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop b{color:var(--accent)}
+.drop small{display:block;color:var(--muted);font-size:12.5px}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+button{cursor:pointer;font-weight:500}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{font-size:13px;color:var(--muted);min-height:1.4em}
+.status.err{color:var(--down)}
+
+/* 報表紙 */
+.paper{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:28px max(20px,3vw);display:flex;flex-direction:column;gap:32px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:14px}
+.head h1{font-family:var(--f-display);font-weight:900;font-size:clamp(24px,4vw,34px);letter-spacing:.02em}
+.head .meta{color:var(--muted);font-size:13px;text-align:right}
+.sec-title{font-family:var(--f-display);font-size:19px;font-weight:700;display:flex;align-items:baseline;gap:10px}
+.sec-title small{font-family:var(--f-body);font-size:12.5px;font-weight:400;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:14px}
+
+.total{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:baseline;padding:14px 18px;background:var(--chip);border-radius:10px}
+.total .lbl{font-size:12.5px;color:var(--muted);letter-spacing:.06em}
+.total .v{font-size:22px;font-weight:700}
+
+.plats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.plats{grid-template-columns:1fr}}
+.plat{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.plat header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.plat h3{font-size:18px;font-weight:700;color:var(--c)}
+.plat .orders{font-size:12.5px;color:var(--muted)}
+.big{font-size:28px;font-weight:700;line-height:1.15}
+.sub{font-size:12.5px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0}
+.kpis div{min-width:0}
+.kpis dt{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.kpis dd{margin:2px 0 0;display:flex;flex-direction:column;gap:2px}
+.kpis small{font-size:11.5px;color:var(--muted)}
+.pill{align-self:flex-start;font-family:var(--f-num);font-weight:700;font-size:14px;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.pill.up{background:var(--upbg);color:var(--up)}
+.pill.down{background:var(--downbg);color:var(--down)}
+.spark{width:100%;height:40px;display:block}
+.spark-cap{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+
+.tops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.tops{grid-template-columns:1fr}}
+.top{min-width:0}
+.top h3{font-size:15px;color:var(--c);margin-bottom:6px;display:flex;gap:8px;align-items:center}
+.top h3::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11.5px;font-weight:500;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right;white-space:nowrap}
+td.rk{font-family:var(--f-num);font-weight:700;color:var(--c);width:1.6em}
+.ret{display:inline-block;font-size:11px;color:var(--down);background:var(--downbg);border-radius:4px;padding:0 5px;margin-left:4px;white-space:nowrap}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+
+.advice{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;counter-reset:a}
+.advice li{counter-increment:a;display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:4px 10px;padding:14px 16px;border:1px solid var(--line);border-radius:10px}
+.advice li::before{content:counter(a);grid-row:span 2;font-family:var(--f-display);font-weight:900;font-size:26px;line-height:1;color:var(--accent)}
+.advice .t{font-weight:700}
+.advice .b{color:var(--ink);font-size:14px;max-width:72ch}
+.advice [contenteditable]:focus{outline:2px dashed var(--accent);outline-offset:3px;border-radius:4px}
+.hint{font-size:12.5px;color:var(--muted)}
+.notes{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+.notes ul{margin:4px 0 0;padding-left:1.2em}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.paper{animation:in .35s ease-out}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <label class="drop" id="drop" for="file">
+      <input type="file" id="file" accept=".xlsx,.xls">
+      <span>
+        <b>上傳最新 Excel</b>（拖進來或點這裡）
+        <small>Google 試算表 →「檔案」→「下載」→「Microsoft Excel (.xlsx)」，再把檔案放進來</small>
+      </span>
+    </label>
+    <div class="ctl">
+      <label for="week" class="hint">週期</label>
+      <select id="week"></select>
+      <button id="copy" class="primary" type="button">複製報表文字</button>
+    </div>
+  </div>
+  <div class="status" id="status" role="status"></div>
+  <div id="report"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script id="seed" type="application/json">/*SEED*/{"weekly":{"momo":{"9/28-10/4":{"orders":14,"gross":23220,"cancel":4140,"ret":4210,"net":14870,"prev":15110},"10/5-10/11":{"orders":12,"gross":22060,"cancel":0,"ret":10000,"net":12060,"prev":23220},"10/12-10/18":{"orders":9,"gross":14750,"cancel":0,"ret":2280,"net":12470,"prev":22060},"10/19-10/25":{"orders":12,"gross":21910,"cancel":0,"ret":980,"net":20930,"prev":14750},"10/26-11/1":{"orders":11,"gross":27020,"cancel":0,"ret":7920,"net":19100,"prev":21910}},"web":{"9/28-10/4":{"orders":11,"gross":29206,"cancel":0,"ret":0,"net":29206,"prev":23142},"10/5-10/11":{"orders":7,"gross":20848,"cancel":0,"ret":380,"net":20468,"prev":29206},"10/12-10/18":{"orders":14,"gross":29539,"cancel":0,"ret":0,"net":29539,"prev":20848},"10/19-10/25":{"orders":18,"gross":47545,"cancel":0,"ret":6573,"net":40972,"prev":29539},"10/26-11/1":{"orders":13,"gross":33554,"cancel":0,"ret":0,"net":33554,"prev":47545}},"shopee":{"9/28-10/4":{"orders":7,"gross":13094,"cancel":null,"ret":null,"net":13094,"prev":17796},"10/5-10/11":{"orders":20,"gross":37624,"cancel":null,"ret":null,"net":37624,"prev":13094},"10/12-10/18":{"orders":18,"gross":31380,"cancel":null,"ret":null,"net":31380,"prev":37624},"10/19-10/25":{"orders":39,"gross":45930,"cancel":null,"ret":null,"net":45930,"prev":31380},"10/26-11/1":{"orders":54,"gross":46174,"cancel":null,"ret":null,"net":46174,"prev":45930}}},"weeks":["9/28-10/4","10/5-10/11","10/12-10/18","10/19-10/25","10/26-11/1"],"top5":{"9/28-10/4":{"momo":[{"name":"丹麥犬胸背帶 Air款-XS","qty":3,"bad":1,"net":2,"amt":3360},{"name":"丹麥犬胸背帶 Pro款-XL","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬 Libra 矽膠餐碗墊-大","qty":2,"bad":0,"net":2,"amt":1960},{"name":"丹麥犬胸背帶 Pro款-XS","qty":1,"bad":0,"net":1,"amt":1880}],"web":[{"name":"Urban Classic 多功能防水牽繩","qty":2,"bad":0,"net":2,"amt":4360},{"name":"Comfort Walk Air 胸背帶-海洋藍","qty":2,"bad":0,"net":2,"amt":4060},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2280},{"name":"Comfort Walk Pro 胸背帶-熱情紫","qty":1,"bad":0,"net":1,"amt":2180},{"name":"Comfort Walk Pro 胸背帶-森林綠","qty":1,"bad":0,"net":1,"amt":2180}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":3,"bad":0,"net":3,"amt":6162},{"name":"丹麥犬 Air 胸背帶","qty":3,"bad":0,"net":3,"amt":5127},{"name":"丹麥犬 Urban Rope 牽繩","qty":1,"bad":0,"net":1,"amt":1415},{"name":"Bugalugs 蘆薈舒緩保濕凝膠","qty":1,"bad":0,"net":1,"amt":390}]},"10/5-10/11":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬胸背帶 Air款-L","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬胸背帶 Pro款-S","qty":2,"bad":1,"net":1,"amt":1980},{"name":"丹麥犬胸背帶 Air款-S","qty":1,"bad":0,"net":1,"amt":1880},{"name":"丹麥犬胸背帶 Air款-M","qty":1,"bad":0,"net":1,"amt":1880}],"web":[{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":4142},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2219},{"name":"Urban Classic 多功能防水牽繩","qty":1,"bad":0,"net":1,"amt":2128},{"name":"Urban Trail 隨行包牽繩","qty":1,"bad":0,"net":1,"amt":2062},{"name":"Comfort Walk Pro 胸背帶-森林綠","qty":1,"bad":0,"net":1,"amt":1932}],"shopee":[{"name":"丹麥犬 Air 胸背帶","qty":8,"bad":0,"net":8,"amt":14990},{"name":"丹麥犬 Pro 胸背帶","qty":6,"bad":0,"net":6,"amt":12329},{"name":"Icelandic+ 海鮮寵物零食","qty":9,"bad":0,"net":9,"amt":2852},{"name":"丹麥犬 Urban Trail 隨行包牽繩","qty":1,"bad":0,"net":1,"amt":2014},{"name":"丹麥犬 Urban Rope 牽繩","qty":1,"bad":0,"net":1,"amt":1441}]},"10/12-10/18":{"momo":[{"name":"丹麥犬 Urban Rope 繩索牽繩","qty":3,"bad":0,"net":3,"amt":4440},{"name":"丹麥犬胸背帶 Go款-XS","qty":2,"bad":0,"net":2,"amt":2560},{"name":"丹麥犬胸背帶 Pro款-L","qty":2,"bad":1,"net":1,"amt":2280},{"name":"丹麥犬 Libra 矽膠餐碗墊-小","qty":2,"bad":0,"net":2,"amt":1560},{"name":"丹麥犬胸背帶 Go款-S","qty":1,"bad":0,"net":1,"amt":1380}],"web":[{"name":"Comfort Walk Pro 胸背帶-檸檬黃","qty":3,"bad":0,"net":3,"amt":5882},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":2,"bad":0,"net":2,"amt":4232},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3872},{"name":"Comfort Walk Air 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3572},{"name":"Comfort Walk Pro 胸背帶-海洋藍","qty":1,"bad":0,"net":1,"amt":1980}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":6,"bad":0,"net":6,"amt":12471},{"name":"丹麥犬 Air 胸背帶","qty":5,"bad":0,"net":5,"amt":9625},{"name":"丹麥犬 Urban Rope 牽繩","qty":3,"bad":0,"net":3,"amt":4341},{"name":"丹麥犬 Urban Freestyle 牽繩","qty":1,"bad":0,"net":1,"amt":1357},{"name":"丹麥犬 Urban Explorer 項圈","qty":1,"bad":0,"net":1,"amt":1262}]},"10/19-10/25":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":3,"bad":0,"net":3,"amt":6840},{"name":"丹麥犬胸背帶 Pro款-M","qty":2,"bad":0,"net":2,"amt":3960},{"name":"丹麥犬胸背帶 Air款-L","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬胸背帶 Pro款-S","qty":1,"bad":0,"net":1,"amt":1980}],"web":[{"name":"Urban Freestyle 輕便風寵物牽繩","qty":7,"bad":0,"net":7,"amt":9384},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":4,"bad":0,"net":4,"amt":8275},{"name":"Urban Trail 隨行包牽繩","qty":2,"bad":0,"net":2,"amt":4160},{"name":"Comfort Walk Air 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3760},{"name":"Comfort Walk Air 胸背帶-摩卡棕","qty":2,"bad":0,"net":2,"amt":3526}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":7,"bad":0,"net":7,"amt":13866},{"name":"丹麥犬 Air 胸背帶","qty":7,"bad":0,"net":7,"amt":12493},{"name":"丹麥犬 Urban Rope 牽繩","qty":2,"bad":0,"net":2,"amt":2856},{"name":"丹麥犬 Urban Freestyle 牽繩","qty":2,"bad":0,"net":2,"amt":2702},{"name":"Fiboo Fiboone Puppy 磨牙玩具","qty":19,"bad":0,"net":19,"amt":2661}]},"10/26-11/1":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":3,"bad":1,"net":2,"amt":4560},{"name":"丹麥犬胸背帶 Air款-XS","qty":2,"bad":0,"net":2,"amt":3360},{"name":"丹麥犬 Urban Rope 繩索牽繩","qty":3,"bad":1,"net":2,"amt":2960},{"name":"丹麥犬胸背帶 Pro款-XL","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":2,"bad":1,"net":1,"amt":2180}],"web":[{"name":"Urban Classic 多功能防水牽繩","qty":2,"bad":0,"net":2,"amt":4304},{"name":"Urban Rope 繩索寵物牽繩","qty":2,"bad":0,"net":2,"amt":2910},{"name":"Urban Freestyle 輕便風寵物牽繩","qty":2,"bad":0,"net":2,"amt":2622},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2280},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":1,"bad":0,"net":1,"amt":1980}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":8,"bad":0,"net":8,"amt":16328},{"name":"丹麥犬 Air 胸背帶","qty":3,"bad":0,"net":3,"amt":6123},{"name":"Fiboo Fiboone Dental 潔牙玩具","qty":12,"bad":0,"net":12,"amt":3347},{"name":"Fiboo Slow Fiboowl 慢食碗-深藍","qty":7,"bad":0,"net":7,"amt":2908},{"name":"Fiboo Fiboone 耐咬玩具","qty":9,"bad":0,"net":9,"amt":2514}]}},"monthly":{"momo":{"2025-01":35695,"2025-02":65963,"2025-03":57239,"2025-04":41462,"2025-05":82150,"2025-06":89591,"2025-07":49010,"2025-08":75539,"2025-09":49493,"2025-10":43254,"2025-11":73072,"2025-12":58288,"2026-01":48570,"2026-02":53286,"2026-03":68395,"2026-04":41010,"2026-05":60097,"2026-06":93047,"2026-07":103471,"2026-08":61475,"2026-09":56840,"2026-10":92380},"web":{"2025-01":15682,"2025-02":28879,"2025-03":19090,"2025-04":14890,"2025-05":48265,"2025-06":20392,"2025-07":42206,"2025-08":40783,"2025-09":37059,"2025-10":75399,"2025-11":83054,"2025-12":29581,"2026-01":49908,"2026-02":23516,"2026-03":50690,"2026-04":53568,"2026-05":70370,"2026-06":58798,"2026-07":104318,"2026-08":135566,"2026-09":118021,"2026-10":144301},"shopee":{}},"lowStock":{"momo":[{"name":"贈 Frii 萬用便當袋（芭蕾舞者1、機器戰士5）","qty":6,"eta":"芭蕾舞者約10/31賣完；整體約11/25"},{"name":"Frii 護脊書包 Easy 22L（獨角亮紫2、湛藍虎1）","qty":3,"eta":"約2027/1下旬"},{"name":"Frii 護脊書包 Retro 30L（天空藍1、開心粉3、紫藍2）","qty":6,"eta":"約2027/4"},{"name":"Bugalugs 防蟲蚤噴霧 200ml","qty":1,"eta":"近30天無出庫"},{"name":"Bugalugs 寵物除臭噴霧（植萃鎮靜）","qty":2,"eta":"近30天無出庫"},{"name":"Icelandic 鱈魚脆片","qty":1,"eta":"近30天無出庫"},{"name":"Icelandic 海鮮雙享塊 85g（鱈魚鯡魚1、鱈魚鮭魚1）","qty":2,"eta":"近30天無出庫"},{"name":"Icelandic 迷你海鮮雙享塊 48.2g","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 L","qty":1,"eta":"近30天無出庫"},{"name":"Record Player One 雙柄球玩具","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 S","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 M","qty":1,"eta":"近30天無出庫"},{"name":"Record 軟木塞絨毛貓咪玩具（長頸鹿1、大象1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 毛線小鳥貓咪玩具（橘、藍、綠各1）","qty":3,"eta":"近30天無出庫"},{"name":"Record 彈力繩結玩具（狐狸1、乳牛1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 皮革耐咬繩結玩具（淺藍怪物1、紅色怪物1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 皮革耐咬繩結玩具 深藍怪物","qty":1,"eta":"近30天無出庫"},{"name":"Record 發聲寵物玩偶（拉拉狐狸1、猴子1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 發聲藏食玩具（舵、變速箱、鐘型罩各1）","qty":3,"eta":"近30天無出庫"},{"name":"Record 耐咬網球玩具（5cm 1、6.5cm 1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 耐咬網球玩具 10cm","qty":1,"eta":"近30天無出庫"},{"name":"Record 乾洗慕斯 小麥蛋白 200ml","qty":1,"eta":"近30天無出庫"}],"web":[{"name":"Comfort Walk Pro 胸背帶-摩卡棕｜L","qty":4,"eta":"約 11/27 賣完"},{"name":"Urban Classic 多功能防水牽繩｜摩卡棕 / L","qty":0,"eta":"已缺貨"},{"name":"Urban Freestyle 輕便風寵物牽繩｜檸檬黃 / S","qty":1,"eta":"約 11/12 賣完"},{"name":"Flexy 拾便袋扣｜沙灰","qty":1,"eta":"約 11/12 賣完"},{"name":"BIO草本植萃洗毛精-Omega3","qty":2,"eta":"約 11/27 賣完"},{"name":"Flexy 拾便袋扣｜尊貴黑","qty":0,"eta":"已缺貨"},{"name":"Comfort Walk Pro 胸背帶-熱情紫｜L","qty":0,"eta":"已缺貨"},{"name":"Urban Rope 繩索寵物牽繩｜沙灰 / S","qty":0,"eta":"已缺貨"},{"name":"Kronborg 炻器陶瓷寵物餐碗｜拿鐵棕 / 中","qty":0,"eta":"已缺貨"},{"name":"Urban Trail 隨行包牽繩｜沙灰 / S","qty":0,"eta":"已缺貨"}],"shopee":[]},"lastDaily":"2026-11-02","baseY":2026,"baseM":11}</script>
+<script>
+const PLATS=[{k:'momo',n:'momo',c:'var(--momo)'},{k:'web',n:'官網',c:'var(--web)'},{k:'shopee',n:'蝦皮',c:'var(--shopee)'}];
+const PN=Object.fromEntries(PLATS.map(p=>[p.k,p.n]));
+let MODEL=null;
+
+/* ---------- 解析 Excel ---------- */
+function platKey(s){if(s==null)return null;s=String(s);if(/momo/i.test(s))return'momo';if(s.includes('官網'))return'web';if(s.includes('蝦皮'))return'shopee';return null}
+function rowsOf(ws){if(!ws||!ws['!ref'])return[];const e=XLSX.utils.decode_range(ws['!ref']).e;
+  return XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:true,range:XLSX.utils.encode_range({s:{r:0,c:0},e})})}
+const isWeek=v=>typeof v==='string'&&/^\s*\d{1,2}\/\d{1,2}\s*[-–~]\s*\d{1,2}\/\d{1,2}\s*$/.test(v);
+const normWeek=v=>v.replace(/\s/g,'').replace(/[–~]/,'-');
+const txt=v=>v==null?'':String(v).trim();
+const n=v=>typeof v==='number'&&isFinite(v)?v:(typeof v==='string'&&v.trim()!==''&&!isNaN(+v.replace(/,/g,''))?+v.replace(/,/g,''):null);
+function serial(s){const d=new Date(Math.round((s-25569)*864e5));return{y:d.getUTCFullYear(),m:d.getUTCMonth()+1,d:d.getUTCDate()}}
+const ym=(y,m)=>y+'-'+String(m).padStart(2,'0');
+
+function parseWorkbook(wb){
+  const names=wb.SheetNames;
+  const pick=(name,probe)=>wb.Sheets[name]?rowsOf(wb.Sheets[name]):(()=>{for(const s of names){if(s==='週報')continue;const R=rowsOf(wb.Sheets[s]);if(R.some(r=>r.some(c=>txt(c).includes(probe))))return R}return[]})();
+  const R=pick('業績表','一週業績');
+  const M=pick('月業績','年月');
+  const model={weekly:{momo:{},web:{},shopee:{}},weeks:[],top5:{},monthly:{momo:{},web:{},shopee:{}},lowStock:{momo:[],web:[],shopee:[]},lastDaily:null};
+
+  // 每日資料最後一天 → 推算年份
+  let last=0;
+  R.forEach((row,r)=>row.forEach((c,ci)=>{if(c==='日期'&&typeof row[ci+1]==='number'){row.forEach(v=>{if(typeof v==='number'&&v>40000&&v<60000&&v>last)last=v})}}));
+  if(last){const d=serial(last);model.lastDaily=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;model.baseY=d.y;model.baseM=d.m}
+  else{const t=new Date();model.baseY=t.getFullYear();model.baseM=t.getMonth()+1}
+
+  // 一週業績區塊
+  const FIELD={'訂單數':'orders','訂購金額':'gross','取消金額':'cancel','退貨金額':'ret','淨業績':'net','前一週訂購金額':'prev'};
+  const weekSet=new Set();
+  R.forEach((row,r)=>{row.forEach((c,ci)=>{
+    if(c!=='日期'||!isWeek(row[ci+1]))return;
+    const p=platKey(row[ci-1])||platKey(R[r-1]&&R[r-1][ci-1]);if(!p)return;
+    const cols=[];for(let j=ci+1;isWeek(row[j]);j++)cols.push([j,normWeek(row[j])]);
+    for(let rr=r+1;rr<=r+9&&rr<R.length;rr++){const lab=txt(R[rr][ci]);if(lab==='日期')break;const f=FIELD[lab];if(!f)continue;
+      cols.forEach(([j,w])=>{(model.weekly[p][w]??={})[f]=n(R[rr][j])})}
+    cols.forEach(([,w])=>weekSet.add(w));
+  })});
+
+  // Top 5
+  R.forEach((row,r)=>{row.forEach((c,ci)=>{
+    if(txt(c)!=='週期')return;
+    const pr=R[r-1]||[];const starts=[];pr.forEach((v,j)=>{const p=platKey(v);if(p&&j>ci)starts.push([j,p])});
+    starts.sort((a,b)=>a[0]-b[0]);
+    const segs=starts.map(([s,p],i)=>{const end=i+1<starts.length?starts[i+1][0]:row.length;const idx=k=>{for(let j=s;j<end;j++)if(txt(row[j])===k)return j;return-1};
+      return{p,name:idx('商品名稱'),qty:idx('訂購數'),bad:idx('取消/退貨數'),net:idx('淨銷量'),amt:idx('淨業績')}});
+    for(let rr=r+1;rr<R.length&&isWeek(R[rr][ci]);rr++){const w=normWeek(R[rr][ci]);const T=(model.top5[w]??={momo:[],web:[],shopee:[]});
+      segs.forEach(s=>{if(s.name<0)return;const nm=txt(R[rr][s.name]);if(!nm)return;
+        T[s.p].push({name:nm,qty:n(R[rr][s.qty]),bad:n(R[rr][s.bad])||0,net:n(R[rr][s.net]),amt:n(R[rr][s.amt])})})}
+  })});
+
+  // 低庫存
+  R.forEach((row,r)=>{const ni=row.findIndex(v=>txt(v)==='商品名稱');const qi=row.findIndex(v=>txt(v)==='目前可賣量');if(ni<0||qi<0)return;
+    let p=null;for(const k of[1,2])(R[r-k]||[]).forEach(v=>{p=p||platKey(v)});if(!p)return;const ei=row.findIndex(v=>txt(v)==='預估售完');
+    for(let rr=r+1;rr<R.length;rr++){const nm=txt(R[rr][ni]);if(!nm||txt(R[rr][ni-1])==='備註')break;model.lowStock[p].push({name:nm,qty:n(R[rr][qi]),eta:ei>=0?txt(R[rr][ei]):''})}});
+
+  // 月業績（去年同期用）
+  M.forEach((row,r)=>{row.forEach((c,ci)=>{if(c!=='年月')return;const ai=row.indexOf('訂購金額');if(ai<0)return;
+    let p=null;for(const k of[1,2,3])(M[r-k]||[]).forEach(v=>{p=p||platKey(v)});if(!p)return;
+    for(let rr=r+1;rr<M.length&&typeof M[rr][ci]==='number';rr++){const d=serial(M[rr][ci]);const v=n(M[rr][ai]);if(v!=null)model.monthly[p][ym(d.y,d.m)]=v}})});
+
+  model.weeks=[...weekSet].map(w=>({w,start:weekStart(w,model)})).sort((a,b)=>a.start-b.start).map(x=>x.w);
+  return model;
+}
+function weekStart(w,m){const[a]=w.split('-');const[mm,dd]=a.split('/').map(Number);const y=mm>m.baseM+1?m.baseY-1:m.baseY;return Date.UTC(y,mm-1,dd)}
+
+/* ---------- 計算 ---------- */
+const dim=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+function lastYearEst(p,start){const mon=MODEL.monthly[p];let sum=0;
+  for(let i=0;i<7;i++){const d=new Date(start+i*864e5);const y=d.getUTCFullYear()-1,m=d.getUTCMonth()+1;const v=mon[ym(y,m)];if(v==null)return null;sum+=v/dim(y,m)}
+  return Math.round(sum)}
+function stats(w){const i=MODEL.weeks.indexOf(w);const pw=i>0?MODEL.weeks[i-1]:null;const start=weekStart(w,MODEL);const out={};
+  PLATS.forEach(({k})=>{const cur=MODEL.weekly[k][w]||{};const prv=pw?MODEL.weekly[k][pw]||{}:{};
+    const gross=cur.gross??null;const prevGross=prv.gross??cur.prev??null;
+    const ly=lastYearEst(k,start);
+    out[k]={gross,net:cur.net??gross,orders:cur.orders??null,cancel:cur.cancel||0,ret:cur.ret||0,prevGross,prevOrders:prv.orders??null,
+      wow:gross!=null&&prevGross?gross/prevGross-1:null,ly,yoy:gross!=null&&ly?gross/ly-1:null,
+      aov:gross&&cur.orders?gross/cur.orders:null,prevAov:prv.gross&&prv.orders?prv.gross/prv.orders:null,
+      series:MODEL.weeks.slice(0,i+1).slice(-8).map(x=>(MODEL.weekly[k][x]||{}).gross??null)}});
+  return out}
+
+/* ---------- 建議 ---------- */
+const $n=v=>v==null?'—':'NT$'+Math.round(v).toLocaleString('zh-TW');
+const pct=(v,sign=true)=>v==null?'—':(sign&&v>0?'+':'')+(v*100).toFixed(1)+'%';
+function advice(w,S){const C=[];const T=MODEL.top5[w]||{momo:[],web:[],shopee:[]};
+  const end=weekStart(w,MODEL)+6*864e5;const endD=new Date(end);
+  // A 退貨率
+  let worst=null;PLATS.forEach(({k})=>{const s=S[k];if(!s.gross)return;const r=(s.cancel+s.ret)/s.gross;if(!worst||r>worst.r)worst={k,r,amt:s.cancel+s.ret}});
+  if(worst&&worst.r>=.15){const items=(T[worst.k]||[]).filter(x=>x.bad>0).map(x=>x.name);
+    C.push({s:worst.r*200,t:`${PN[worst.k]} 退貨率偏高，先找出原因`,b:`本週取消＋退貨 ${$n(worst.amt)}，占訂購金額 ${pct(worst.r,false)}。${items.length?'Top 5 裡有退貨的：'+items.join('、')+'。':''}逐筆查退貨原因；如果多是尺寸不合，在商品頁補量測教學與尺寸對照表，下單後主動跟客人確認尺寸。`})}
+  // B 熱銷品缺貨
+  const hits=[];PLATS.forEach(({k})=>{(T[k]||[]).forEach(it=>{(MODEL.lowStock[k]||[]).forEach(ls=>{const base=ls.name.split('｜')[0].trim();
+    if((base===it.name||it.name.includes(base)||base.includes(it.name))&&(ls.qty!=null&&ls.qty<=1||/缺貨/.test(ls.eta)))hits.push({k,it:it.name,ls})})})});
+  if(hits.length){const list=hits.slice(0,3).map(h=>`${PN[h.k]}「${h.ls.name}」可賣 ${h.ls.qty??'?'} 件${h.ls.eta?'（'+h.ls.eta+'）':''}`).join('；');
+    C.push({s:55+hits.length*3,t:'熱銷款快斷貨，本週先補貨',b:`${list}。這些都在本週 Top 5，缺貨會直接掉單。建議本週下單補貨；補到之前，把廣告和版位移到還有庫存的顏色或尺寸。`})}
+  // C 衰退
+  let dn=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow<=-.15&&(!dn||s.wow<S[dn].wow))dn=k});
+  if(dn){const s=S[dn];const ser=s.series.filter(v=>v!=null);const prevPeak=ser.length>2&&s.prevGross>=Math.max(...ser.slice(0,-1));
+    C.push({s:Math.abs(s.wow)*120,t:`${PN[dn]} 比上週少 ${pct(-s.wow,false)}，拉回舊客`,b:`本週訂購金額 ${$n(s.gross)}，上週 ${$n(s.prevGross)}${prevPeak?'（上週是近幾週最高，跌幅有一部分是基期偏高）':''}。用會員推播（LINE／EDM）搭配正在跑的滿額活動喚回舊客，同時檢查廣告預算或活動是否在本週結束。`})}
+  // D 訂單增、客單降
+  PLATS.forEach(({k})=>{const s=S[k];if(!s.orders||!s.prevOrders||!s.aov||!s.prevAov)return;const og=s.orders/s.prevOrders-1,ag=s.aov/s.prevAov-1;
+    if(og>=.15&&ag<=-.1){const cheap=(T[k]||[]).filter(x=>x.amt&&x.net&&x.amt/x.net<600).map(x=>x.name);
+      C.push({s:45,t:`${PN[k]} 訂單變多但客單下降，用組合拉高客單`,b:`訂單 ${s.prevOrders}→${s.orders} 筆（${pct(og)}），客單價 ${$n(s.prevAov)}→${$n(s.aov)}。${cheap.length?'帶量的是低單價品：'+cheap.join('、')+'。':''}把低價小物設成加價購，或和主力胸背帶綁組合價，讓每筆訂單金額往上走。`})}});
+  // E 成長
+  let upk=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow>=.15&&(!upk||s.wow>S[upk].wow))upk=k});
+  if(upk){const s=S[upk];const top=(T[upk]||[])[0];
+    C.push({s:s.wow*80,t:`${PN[upk]} 成長 ${pct(s.wow)}，延續動能`,b:`本週訂購金額 ${$n(s.gross)}（上週 ${$n(s.prevGross)}）${top?'，主力是「'+top.name+'」':''}。把預算和版位集中在帶量商品，並確認庫存撐得到下一檔活動。`})}
+  // F 去年同期落後
+  PLATS.forEach(({k})=>{const s=S[k];if(s.yoy!=null&&s.yoy<=-.1)C.push({s:Math.abs(s.yoy)*100,t:`${PN[k]} 落後去年同期 ${pct(-s.yoy,false)}`,b:`本週 ${$n(s.gross)}，去年同週估 ${$n(s.ly)}。對照去年同月做了哪些活動，評估今年是否補上同類檔期。`})});
+  // G 雙 11
+  const m=endD.getUTCMonth()+1,d=endD.getUTCDate();
+  if(m===10||(m===11&&d<11)){const left=Math.round((Date.UTC(endD.getUTCFullYear(),10,11)-end)/864e5);
+    C.push({s:25,t:'雙 11 檔期最後衝刺',b:`距離 11/11 還有 ${left} 天。確認三平台活動價、滿額門檻沒有互相打架（避免官網比 momo、蝦皮貴），熱銷款備足庫存，並預排 11/10–11/11 的推播與廣告加碼。`})}
+  // H 占比最低的平台
+  const tot=PLATS.reduce((a,{k})=>a+(S[k].gross||0),0);
+  if(tot){const lo=PLATS.map(p=>p.k).sort((a,b)=>(S[a].gross||0)-(S[b].gross||0))[0];
+    C.push({s:5,t:`拉高 ${PN[lo]} 的業績占比`,b:`${PN[lo]} 本週占三平台 ${pct((S[lo].gross||0)/tot,false)}。挑另兩個平台賣得好的款，在 ${PN[lo]} 補齊商品頁與活動，測試一週看轉換。`})}
+  C.sort((a,b)=>b.s-a.s);const seen=new Set();return C.filter(c=>!seen.has(c.t)&&seen.add(c.t)).slice(0,3)}
+
+/* ---------- 畫面 ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill=v=>v==null?'<span class="pill">—</span>':`<span class="pill ${v>=0?'up':'down'}">${v>=0?'▲':'▼'} ${Math.abs(v*100).toFixed(1)}%</span>`;
+function spark(vals){const v=vals.map(x=>x??0);if(v.length<2)return'';const W=200,H=40,max=Math.max(...v,1),min=Math.min(...v,0);
+  const pts=v.map((x,i)=>[4+i*(W-8)/(v.length-1),H-4-(x-min)/(max-min||1)*(H-10)]);const line=pts.map(p=>p.map(z=>z.toFixed(1)).join(',')).join(' ');
+  const last=pts[pts.length-1];
+  return`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polygon points="4,${H-4} ${line} ${last[0].toFixed(1)},${H-4}" fill="var(--c)" opacity=".12"/><polyline points="${line}" fill="none" stroke="var(--c)" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.2" fill="var(--c)"/></svg>`}
+const wkLabel=w=>w.replace('-','–');
+
+function render(){const w=document.getElementById('week').value;if(!w)return;const S=stats(w);const T=MODEL.top5[w]||{momo:[],web:[],shopee:[]};const A=advice(w,S);
+  const tot=PLATS.reduce((a,{k})=>a+(S[k].gross||0),0),totPrev=PLATS.reduce((a,{k})=>a+(S[k].prevGross||0),0),totNet=PLATS.reduce((a,{k})=>a+(S[k].net||0),0);
+  const lyAll=PLATS.every(({k})=>S[k].ly!=null)?PLATS.reduce((a,{k})=>a+S[k].ly,0):null;
+  const n8=Math.min(8,MODEL.weeks.indexOf(w)+1);
+  document.getElementById('report').innerHTML=`<article class="paper" id="paper">
+  <div class="head"><div><div class="hint">三平台週報</div><h1>${wkLabel(w)} 週業績</h1></div>
+    <div class="meta">momo · 官網 · 蝦皮<br>資料更新至 ${MODEL.lastDaily||'—'}</div></div>
+  <section><h2 class="sec-title">業績總覽<small>週業績＝訂購金額；WoW 與去年同期都用訂購金額比</small></h2>
+    <div class="total"><div><div class="lbl">三平台合計</div><div class="v num">${$n(tot)}</div></div>
+      <div><div class="lbl">合計 WoW</div>${pill(totPrev?tot/totPrev-1:null)}</div>
+      <div><div class="lbl">合計淨業績</div><div class="num">${$n(totNet)}</div></div>
+      ${lyAll?`<div><div class="lbl">合計與去年同期比</div>${pill(tot/lyAll-1)}</div>`:''}</div>
+    <div class="plats">${PLATS.map(({k,n:nm,c})=>{const s=S[k];return`<article class="plat" style="--c:${c}">
+      <header><h3>${nm}</h3><span class="orders num">${s.orders??'—'} 筆訂單</span></header>
+      <div><div class="big num">${$n(s.gross)}</div><div class="sub">淨業績 <span class="num">${$n(s.net)}</span>${s.cancel+s.ret?` · 取消/退貨 <span class="num">${$n(s.cancel+s.ret)}</span>`:''}</div></div>
+      <dl class="kpis"><div><dt>WoW 週成長</dt><dd>${pill(s.wow)}<small>上週 ${$n(s.prevGross)}</small></dd></div>
+        <div><dt>與去年同期比</dt><dd>${pill(s.yoy)}<small>${s.ly!=null?'去年同週估 '+$n(s.ly):'Excel 沒有去年資料'}</small></dd></div></dl>
+      <div>${spark(s.series)}<div class="spark-cap"><span>近 ${n8} 週訂購金額</span><span>本週</span></div></div></article>`}).join('')}</div>
+  </section>
+  <section><h2 class="sec-title">各平台銷售 Top 5<small>依淨業績排序</small></h2>
+    <div class="tops">${PLATS.map(({k,n:nm,c})=>{const L=(T[k]||[]).slice(0,5);return`<div class="top" style="--c:${c}"><h3>${nm}</h3>${L.length?`<div class="tbl"><table>
+      <thead><tr><th></th><th>商品</th><th class="r">淨銷量</th><th class="r">淨業績</th></tr></thead><tbody>
+      ${L.map((x,i)=>`<tr><td class="rk">${i+1}</td><td>${esc(x.name)}${x.bad?`<span class="ret">退 ${x.bad}</span>`:''}</td><td class="r num">${x.net??'—'}</td><td class="r num">${$n(x.amt)}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty">這週沒有 Top 5 資料</div>'}</div>`}).join('')}</div>
+  </section>
+  <section><h2 class="sec-title">未來操作方向<small>依本週數據自動產生，可直接點文字修改</small></h2>
+    <ol class="advice" id="advice">${A.map(a=>`<li><div class="t" contenteditable="true">${esc(a.t)}</div><div class="b" contenteditable="true">${esc(a.b)}</div></li>`).join('')}</ol>
+  </section>
+  <div class="notes"><b>計算方式</b><ul>
+    <li>週業績、WoW、Top 5 取自「業績表」分頁的「二、一週業績」和「三、本週銷售 Top 5」。</li>
+    <li>WoW＝本週訂購金額 ÷ 上週訂購金額 − 1。</li>
+    <li>與去年同期比：Excel 只有去年的「月業績」，所以去年同週＝去年同月訂購金額 ÷ 當月天數 × 該週落在那個月的天數，是估算值。蝦皮目前沒有去年月業績，所以顯示「—」。</li>
+    <li>缺貨提醒取自「四、低庫存提醒」，以最近一次更新為準。</li></ul></div>
+</article>`}
+
+function copyText(){const w=document.getElementById('week').value;if(!w)return;const S=stats(w);const T=MODEL.top5[w]||{};
+  const L=[`【三平台週報 ${wkLabel(w)}】`,''];
+  PLATS.forEach(({k,n:nm})=>{const s=S[k];L.push(`■ ${nm}`,`週業績 ${$n(s.gross)}（淨業績 ${$n(s.net)}，${s.orders??'—'} 筆）`,`WoW ${pct(s.wow)}（上週 ${$n(s.prevGross)}）`,
+    `與去年同期比 ${s.yoy==null?'—（無去年資料）':pct(s.yoy)+'（去年同週估 '+$n(s.ly)+'）'}`,'Top 5：');
+    (T[k]||[]).slice(0,5).forEach((x,i)=>L.push(`${i+1}. ${x.name}｜${x.net??'—'} 件｜${$n(x.amt)}`));L.push('')});
+  L.push('■ 未來操作方向');document.querySelectorAll('#advice li').forEach((li,i)=>L.push(`${i+1}. ${li.querySelector('.t').innerText.trim()}：${li.querySelector('.b').innerText.trim()}`));
+  const text=L.join('\n');
+  const done=()=>toast('已複製，可直接貼到 LINE 或 Email');
+  const fallback=()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px';document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy')?done():toast('複製失敗，請手動選取報表文字')}catch(e){toast('複製失敗，請手動選取報表文字')}ta.remove()};
+  try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,2400)}
+function status(m,err){const s=document.getElementById('status');s.textContent=m;s.className='status'+(err?' err':'')}
+
+function load(model,src){MODEL=model;window.__model=model;const sel=document.getElementById('week');
+  if(!model.weeks.length){status('在這個檔案裡找不到「一週業績」資料，請確認是同一份 Excel。',true);return}
+  const has=w=>PLATS.some(({k})=>(model.weekly[k][w]||{}).gross);const latest=[...model.weeks].reverse().find(has)||model.weeks[model.weeks.length-1];
+  sel.innerHTML=[...model.weeks].reverse().map(w=>`<option value="${w}">${wkLabel(w)}${w===latest?'（最新）':''}</option>`).join('');sel.value=latest;
+  status(src);render()}
+function readFile(f){if(!f)return;status('讀取中…');const fr=new FileReader();fr.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+  const m=parseWorkbook(wb);load(m,`已讀取「${f.name}」：找到 ${m.weeks.length} 週資料，顯示最新一週。`)}catch(err){status('讀不了這個檔案：請確認是 .xlsx 格式（Google 試算表 → 檔案 → 下載 → Excel）。',true)}};fr.readAsArrayBuffer(f)}
+
+document.getElementById('file').addEventListener('change',e=>readFile(e.target.files[0]));
+document.getElementById('week').addEventListener('change',render);
+document.getElementById('copy').addEventListener('click',copyText);
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>readFile(e.dataTransfer.files[0]));
+
+try{const seed=JSON.parse(document.getElementById('seed').textContent.replace('/*SEED*/',''));if(seed)load(seed,`目前顯示 ${seed.lastDaily||''} 擷取的資料。下週上傳新的 Excel 就會自動更新。`)}catch(e){}
+if(!MODEL)status('上傳 Excel 後會自動產生報表。');
+</script>

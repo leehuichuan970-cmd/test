@@ -603,35 +603,30 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
 /* ================= 客戶版：編輯與存檔 ================= */
 // 存檔以「區塊」為單位（每個可編輯區塊有固定代號），之後資料更新也不會蓋掉已存的文字
 let dbP=null;function getDb(){if(!window.claude||!claude.use)return Promise.resolve(null);return dbP??=claude.use('db').catch(()=>null)}
-let asP=null;function getAssets(){if(!window.claude||!claude.use)return Promise.resolve(null);return asP??=claude.use('assets').catch(()=>null)}
 const editId=w=>'w'+w.replace(/[^0-9]+/g,'-');
-let IMGS=[];
+// 圖片：壓成 JPEG 後存進網站資料庫（每張一筆，單筆上限 256KB），不另外依賴檔案空間
+let IMGS=[];let IMG_DEL=[];
 function eStat(t,kind){const s=$('eStat');if(s){s.textContent=t;s.className='estat'+(kind?' '+kind:'')}}
 const ekey=e=>e.dataset.ek||e.id;
 function editables(){return[...document.querySelectorAll('#clientDoc [contenteditable]')].filter(e=>e.id!=='cExtra'&&ekey(e))}
 const readTxt=e=>e.innerText.replace(/\n+$/,'');
-async function readSaved(w){const db=await getDb();if(db){try{const s=await db.doc('edits/'+editId(w)).get();if(s.exists)return s.data()}catch(e){}}
-  try{return JSON.parse(ls.get('pr.edit.'+editId(w))||'null')}catch(e){return null}}
+const imgDoc=(w,k)=>'edimg/'+editId(w)+'-'+k;
+async function readSaved(w){const db=await getDb();if(db){try{const s=await db.doc('edits/'+editId(w)).get();if(s.exists)return{d:s.data(),db}}catch(e){}}
+  try{return{d:JSON.parse(ls.get('pr.edit.'+editId(w))||'null'),db:null}}catch(e){return{d:null}}}
 function renderImgs(){const box=$('cImgs');if(!box)return;box.innerHTML=IMGS.map((im,i)=>`<figure class="eimg"><img src="${esc(im.url)}" alt="其他建議圖片 ${i+1}"><button class="btn noprint" type="button" data-del="${i}">刪除圖片</button></figure>`).join('');
-  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{IMGS.splice(+b.dataset.del,1);renderImgs();eStat('有未儲存的修改','warn')})}
-// 先轉成 JPEG（最長邊 1600px），避免 HEIC 或太大的圖上傳失敗
-async function toJpeg(f){const url=URL.createObjectURL(f);try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
-  const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
-  const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
-  return await new Promise(r=>c.toBlob(r,'image/jpeg',.88))}finally{URL.revokeObjectURL(url)}}
-const UPMSG={too_large:'圖片太大，請換小一點的圖',unsupported_type:'這個圖片格式不支援，請改用 JPG 或 PNG',quota_or_state:'網站的圖片空間已滿',rate_limited:'上傳太頻繁，等一下再試',upstream_auth:'登入狀態過期，請重新整理頁面',not_granted:'你沒有這個網站的編輯權限，圖片只能放在這次的 PDF',capability_disabled:'這個畫面不能上傳圖片，圖片只能放在這次的 PDF'};
-async function addImages(files){files=[...files].filter(f=>f&&/^image\//.test(f.type||'')||/\.(heic|heif|jpe?g|png|gif|webp)$/i.test(f&&f.name||''));
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const [x]=IMGS.splice(+b.dataset.del,1);if(x&&x.saved)IMG_DEL.push(x.key);renderImgs();eStat('有未儲存的修改','warn')})}
+async function toJpegUrl(f){const src=URL.createObjectURL(f);try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+  let side=1400,q=.85,url='';
+  for(let t=0;t<8;t++){const k=Math.min(1,side/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*k));c.height=Math.max(1,Math.round(img.naturalHeight*k));
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);url=c.toDataURL('image/jpeg',q);
+    if(url.length<=230000)return url;if(q>.6)q-=.1;else side=Math.round(side*.8)}
+  return url}finally{URL.revokeObjectURL(src)}}
+async function addImages(files){files=[...files].filter(f=>f&&(/^image\//.test(f.type||'')||/\.(heic|heif|jpe?g|png|gif|webp)$/i.test(f.name||'')));
   if(!files.length){eStat('沒有讀到圖片檔，請選 JPG 或 PNG','warn');return}
-  eStat('圖片處理中…');const as=await getAssets();let ok=0,localN=0,msg='';
-  for(const f of files){let blob=null;try{blob=await toJpeg(f)}catch(e){msg='這個圖片格式不支援，請改用 JPG 或 PNG';continue}
-    if(as){try{let r;try{r=await as.upload(blob,{type:'image/jpeg'})}catch(e){if(e&&e.code==='store_unavailable'){await new Promise(z=>setTimeout(z,1500));r=await as.upload(blob,{type:'image/jpeg'})}else throw e}
-        IMGS.push({id:r.id,url:r.url});ok++;continue}catch(e){msg=UPMSG[e&&e.code]||'圖片上傳失敗（'+(e&&e.code||'未知原因')+'）'}}
-    const url=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(blob)});IMGS.push({url,local:true});localN++}
-  renderImgs();
-  if(ok&&!localN)eStat(`已加入 ${ok} 張圖片，記得按「儲存修改」`,'warn');
-  else if(localN)eStat(`${msg||'這個畫面不能存圖片'}；已先加入 ${localN} 張，會出現在這次匯出的 PDF，但不會被儲存`,'warn');
-  else eStat(msg||'圖片沒有加入','warn')}
-async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];
+  eStat('圖片處理中…');let n=0,bad=0;
+  for(const f of files){try{const url=await toJpegUrl(f);if(url.length>250000)throw 0;IMGS.push({key:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),url});n++}catch(e){bad++}}
+  renderImgs();eStat(n?`已加入 ${n} 張圖片${bad?`（${bad} 張格式不支援，請改用 JPG 或 PNG）`:''}，記得按「儲存修改」`:'這個圖片格式不支援，請改用 JPG 或 PNG','warn')}
+async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];IMG_DEL=[];
   editables().forEach(e=>e.dataset.orig=e.textContent);
   doc.addEventListener('input',()=>eStat('有未儲存的修改','warn'));
   $('eSave').onclick=()=>saveEdits(w);$('eReset').onclick=()=>resetEdits(w);
@@ -639,24 +634,31 @@ async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];
   $('eImgBtn').onclick=()=>$('eImgIn').click();
   const sec=$('cExtraSec');sec.addEventListener('paste',e=>{const fs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(fs)}});
   ['dragenter','dragover'].forEach(t=>sec.addEventListener(t,e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){e.preventDefault();sec.classList.add('over')}}));
-  ['dragleave','drop'].forEach(t=>sec.addEventListener(t,e=>{sec.classList.remove('over')}));
+  ['dragleave','drop'].forEach(t=>sec.addEventListener(t,()=>sec.classList.remove('over')));
   sec.addEventListener('drop',e=>{const fs=[...(e.dataTransfer&&e.dataTransfer.files||[])];if(fs.length){e.preventDefault();addImages(fs)}});
-  const d=await readSaved(w);if(!d||$('week').value!==w||!$('clientDoc'))return;
+  const {d,db}=await readSaved(w);if(!d||$('week').value!==w||!$('clientDoc'))return;
   const when=d.savedAt?new Date(d.savedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(d.v===2&&d.fields){editables().forEach(e=>{const k=ekey(e);if(typeof d.fields[k]==='string')e.textContent=d.fields[k]})}
   else if(Array.isArray(d.items)){d.items.forEach(it=>{const el=editables().find(e=>e.dataset.orig===it.o);if(el)el.textContent=String(it.t??'')})}
   if(typeof d.extra==='string')$('cExtra').textContent=d.extra;
-  IMGS=Array.isArray(d.images)?d.images.filter(x=>x&&typeof x.url==='string'):[];renderImgs();
-  eStat(`已載入 ${when} 的存檔`,'ok')}
-async function saveEdits(w){const btn=$('eSave');btn.disabled=true;
+  const keys=Array.isArray(d.imgKeys)?d.imgKeys.filter(k=>typeof k==='string'):[];
+  for(const k of keys){let url=null;
+    if(db){try{const s=await db.doc(imgDoc(w,k)).get();if(s.exists)url=s.data().data}catch(e){}}
+    else url=ls.get('pr.img.'+editId(w)+'-'+k);
+    if(typeof url==='string'&&url.startsWith('data:image/'))IMGS.push({key:k,url,saved:true})}
+  renderImgs();eStat(`已載入 ${when} 的存檔${keys.length?`（${IMGS.length} 張圖片）`:''}`,'ok')}
+async function saveEdits(w){const btn=$('eSave');btn.disabled=true;eStat('儲存中…');
   const fields={};editables().forEach(e=>fields[ekey(e)]=readTxt(e));
-  const data={v:2,fields,extra:readTxt($('cExtra')).trim(),images:IMGS.filter(x=>!x.local),savedAt:Date.now()};
-  try{const db=await getDb();let ok=false;
-    if(db){try{await db.doc('edits/'+editId(w)).set(data);ok=true}catch(e){}}
+  try{const db=await getDb();let failImg=0;
+    for(const im of IMGS.filter(x=>!x.saved)){try{if(db)await db.doc(imgDoc(w,im.key)).set({data:im.url,week:w});else ls.set('pr.img.'+editId(w)+'-'+im.key,im.url);im.saved=true}catch(e){failImg++}}
+    for(const k of IMG_DEL){try{if(db)await db.doc(imgDoc(w,k)).delete();else localStorage.removeItem('pr.img.'+editId(w)+'-'+k)}catch(e){}}IMG_DEL=[];
+    const data={v:2,fields,extra:readTxt($('cExtra')).trim(),imgKeys:IMGS.filter(x=>x.saved).map(x=>x.key),savedAt:Date.now()};
+    let ok=false;if(db){try{await db.doc('edits/'+editId(w)).set(data);ok=true}catch(e){}}
     ls.set('pr.edit.'+editId(w),JSON.stringify(data));
-    eStat(ok?'已儲存到網站，之後更新資料也會保留這份內容':db?'網站存檔失敗，先存在這台電腦；請稍後再按一次儲存':'已儲存在這台電腦的瀏覽器',ok||!db?'ok':'warn')}
+    if(db&&!ok)eStat('網站存檔失敗，先存在這台電腦；請稍後再按一次儲存','warn');
+    else eStat((db?'已儲存到網站':'已儲存在這台電腦的瀏覽器')+(failImg?`，但有 ${failImg} 張圖片沒存成功，請再按一次儲存`:'')+`（${data.imgKeys.length} 張圖片）`,failImg?'warn':'ok')}
   finally{btn.disabled=false}}
-async function resetEdits(w){try{const db=await getDb();if(db)await db.doc('edits/'+editId(w)).delete()}catch(e){}
+async function resetEdits(w){try{const db=await getDb();if(db){const s=await db.doc('edits/'+editId(w)).get();const ks=s.exists&&Array.isArray(s.data().imgKeys)?s.data().imgKeys:[];for(const k of ks){try{await db.doc(imgDoc(w,k)).delete()}catch(e){}}await db.doc('edits/'+editId(w)).delete()}}catch(e){}
   try{localStorage.removeItem('pr.edit.'+editId(w))}catch(e){}renderClient(w);eStat('已還原成自動產生的內容','ok')}
 
 /* ================= 總覽 ================= */

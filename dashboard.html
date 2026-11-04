@@ -401,8 +401,8 @@ function advice(w,S){const C=[];const T=MODEL.top5[w]||{momo:[],web:[],shopee:[]
   const end=weekStart(w,MODEL)+6*DAY;const endD=new Date(end);
   let worst=null;PLATS.forEach(({k})=>{const s=S[k];if(!s.gross)return;const r=(s.cancel+s.ret)/s.gross;if(!worst||r>worst.r)worst={k,r,amt:s.cancel+s.ret}});
   if(worst&&worst.r>=.15){const items=(T[worst.k]||[]).filter(x=>x.bad>0).map(x=>x.name);const P=PN[worst.k];
-    C.push({s:worst.r*200,t:`${P} 退貨率偏高，先找出原因`,b:`本週取消＋退貨 ${$n(worst.amt)}，占訂購金額 ${pct(worst.r,false)}。${items.length?'Top 5 裡有退貨的：'+items.join('、')+'。':''}逐筆查退貨原因；如果多是尺寸不合，在商品頁補量測教學與尺寸對照表，下單後主動跟客人確認尺寸。`,
-      ct:`${P} 退貨偏多`,cb:`取消＋退貨 ${$n(worst.amt)}（占 ${pct0(worst.r)}）。建議商品頁補上尺寸對照表，降低退貨。`})}
+    C.push({s:worst.r*200,t:`${P} 退貨率偏高，先找出原因`,b:`本週取消＋退貨 ${$n(worst.amt)}，占訂購金額 ${pct(worst.r,false)}。${items.length?'Top 5 裡有退貨的：'+items.join('、')+'。':''}到 ${P} 後台逐筆看退貨原因（尺寸、品質、與描述不符、物流等），找出主因再對症處理。`,
+      ct:`${P} 退貨偏多`,cb:`取消＋退貨 ${$n(worst.amt)}（占 ${pct0(worst.r)}）。建議到 ${P} 後台查看退貨原因，找出主因再調整。`})}
   const hits=[];PLATS.forEach(({k})=>{(T[k]||[]).forEach(it=>{(MODEL.lowStock[k]||[]).forEach(l=>{const base=l.name.split('｜')[0].trim();
     if((base===it.name||it.name.includes(base)||base.includes(it.name))&&(l.qty!=null&&l.qty<=1||/缺貨/.test(l.eta)))hits.push({k,it:it.name,ls:l})})})});
   if(hits.length){const h3=hits.slice(0,3);const list=h3.map(h=>`${PN[h.k]}「${h.ls.name}」可賣 ${h.ls.qty??'?'} 件${h.ls.eta?'（'+h.ls.eta+'）':''}`).join('；');
@@ -531,7 +531,7 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
     `${PN[best]} 業績最高：${$n(S[best].net)}。`];
   if(ordUp.length)HL.push(ordUp.map(k=>`${PN[k]}訂單 ${S[k].prevOrders}→${S[k].orders} 筆`).join('；')+'。');
   if(yoys.length)HL.push(`比去年同期：${PLATS.filter(({k})=>S[k].yoy!=null).map(({k})=>PN[k]+' '+(S[k].yoy>=0?'+':'−')+pct0(S[k].yoy)).join('、')}。`);
-  if(topItem)HL.push(`熱賣第一：「${esc(topItem.name)}」${$n(topItem.amt)}。`);
+  if(topItem)HL.push(`三平台熱賣第一：${PN[topItem.k]}「${esc(topItem.name)}」${$n(topItem.amt)}。`);
   $('v-client').innerHTML=`<article class="client" id="clientDoc">
   <div class="chead blk"><div><div class="who" id="cWho">${esc(clientName())}</div><h1>週業績報告｜${wkLabel(w)}</h1></div><div class="meta">momo · 官網 · 蝦皮<br>製表日期 ${iso(Date.now())}</div></div>
   <section class="sec blk"><h2>這週重點</h2><ul class="hl">${HL.map(h=>`<li contenteditable="true">${tidy(h)}</li>`).join('')}</ul></section>

@@ -380,34 +380,34 @@ function advice(w,S){const C=[];const T=MODEL.top5[w]||{momo:[],web:[],shopee:[]
   let worst=null;PLATS.forEach(({k})=>{const s=S[k];if(!s.gross)return;const r=(s.cancel+s.ret)/s.gross;if(!worst||r>worst.r)worst={k,r,amt:s.cancel+s.ret}});
   if(worst&&worst.r>=.15){const items=(T[worst.k]||[]).filter(x=>x.bad>0).map(x=>x.name);const P=PN[worst.k];
     C.push({s:worst.r*200,t:`${P} 退貨率偏高，先找出原因`,b:`本週取消＋退貨 ${$n(worst.amt)}，占訂購金額 ${pct(worst.r,false)}。${items.length?'Top 5 裡有退貨的：'+items.join('、')+'。':''}逐筆查退貨原因；如果多是尺寸不合，在商品頁補量測教學與尺寸對照表，下單後主動跟客人確認尺寸。`,
-      ct:`${P} 退貨偏多，調整商品頁說明`,cb:`${P} 這週取消加退貨共 ${$n(worst.amt)}，大約占訂購金額的 ${pct0(worst.r)}${items.length?'，主要是'+items.join('、'):''}。我們會先整理退貨原因，如果多半是尺寸不合，會在商品頁補上量測教學和尺寸對照表，讓客人下單前比較好選。`})}
+      ct:`${P} 退貨偏多`,cb:`取消＋退貨 ${$n(worst.amt)}（占 ${pct0(worst.r)}），會補上尺寸對照表降低退貨。`})}
   const hits=[];PLATS.forEach(({k})=>{(T[k]||[]).forEach(it=>{(MODEL.lowStock[k]||[]).forEach(l=>{const base=l.name.split('｜')[0].trim();
     if((base===it.name||it.name.includes(base)||base.includes(it.name))&&(l.qty!=null&&l.qty<=1||/缺貨/.test(l.eta)))hits.push({k,it:it.name,ls:l})})})});
   if(hits.length){const h3=hits.slice(0,3);const list=h3.map(h=>`${PN[h.k]}「${h.ls.name}」可賣 ${h.ls.qty??'?'} 件${h.ls.eta?'（'+h.ls.eta+'）':''}`).join('；');
     C.push({s:55+hits.length*3,t:'熱銷款快斷貨，本週先補貨',b:`${list}。這些都在本週 Top 5，缺貨會直接掉單。建議本週下單補貨；補到之前，把廣告和版位移到還有庫存的顏色或尺寸。`,
-      ct:'熱賣款補貨',cb:`${h3.map(h=>shortName(h.ls.name)).join('、')} 是這週的熱賣商品，庫存已經快沒了（有幾款已經賣完）。我們會盡快安排補貨；到貨前，廣告會先推還有庫存的顏色和尺寸。`})}
+      ct:'熱賣款補貨',cb:`${h3.slice(0,2).map(h=>shortName(h.ls.name)).join('、')}${hits.length>2?' 等 '+hits.length+' 款':''}快沒貨，會儘快補貨。`})}
   let dn=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow<=-.15&&(!dn||s.wow<S[dn].wow))dn=k});
   if(dn){const s=S[dn];const ser=s.series.filter(v=>v!=null);const prevPeak=ser.length>2&&s.prevNet>=Math.max(...ser.slice(0,-1));const P=PN[dn];
     C.push({s:Math.abs(s.wow)*120,t:`${P} 淨業績比上週少 ${pct(-s.wow,false)}，拉回舊客`,b:`本週淨業績 ${$n(s.net)}，上週 ${$n(s.prevNet)}${prevPeak?'（上週是近幾週最高，跌幅有一部分是基期偏高）':''}。用會員推播（LINE／EDM）搭配正在跑的滿額活動喚回舊客，同時檢查廣告預算或活動是否在本週結束。`,
-      ct:`${P} 把回購帶回來`,cb:`${P} 這週淨業績 ${$n(s.net)}，比上週少 ${pct0(s.wow)}${prevPeak?'；上週剛好是近幾週的高點，所以落差看起來比較大':''}。下週會用 LINE 和 EDM 提醒老客人，搭配現在的滿額活動，把回購帶回來。`})}
+      ct:`${P} 拉回購`,cb:`比上週少 ${pct0(s.wow)}${prevPeak?'（上週基期較高）':''}，下週用 LINE、EDM 搭配滿額活動喚回老客。`})}
   PLATS.forEach(({k})=>{const s=S[k];if(!s.orders||!s.prevOrders||!s.aov||!s.prevAov)return;const og=s.orders/s.prevOrders-1,ag=s.aov/s.prevAov-1;
     if(og>=.15&&ag<=-.1){const cheap=(T[k]||[]).filter(x=>x.amt&&x.net&&x.amt/x.net<600).map(x=>x.name);const P=PN[k];
       C.push({s:45,t:`${P} 訂單變多但客單下降，用組合拉高客單`,b:`訂單 ${s.prevOrders}→${s.orders} 筆（${pct(og)}），客單價 ${$n(s.prevAov)}→${$n(s.aov)}。${cheap.length?'帶量的是低單價品：'+cheap.join('、')+'。':''}把低價小物設成加價購，或和主力胸背帶綁組合價，讓每筆訂單金額往上走。`,
-        ct:`${P} 用組合價提高每筆金額`,cb:`${P} 這週訂單從 ${s.prevOrders} 筆增加到 ${s.orders} 筆，但平均每筆金額從 ${$n(s.prevAov)} 降到 ${$n(s.aov)}${cheap.length?'，主要是'+cheap.join('、')+'這類小物賣得很好':''}。下週會把小物做成加價購，或和胸背帶搭成組合價，讓每筆訂單的金額拉高。`})}});
+        ct:`${P} 提高客單`,cb:`訂單 ${s.prevOrders}→${s.orders} 筆，客單從 ${$n(s.prevAov)} 降到 ${$n(s.aov)}，會推小物加價購和組合價。`})}});
   let upk=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow>=.15&&(!upk||s.wow>S[upk].wow))upk=k});
   if(upk){const s=S[upk];const top=(T[upk]||[])[0];const P=PN[upk];
     C.push({s:s.wow*80,t:`${P} 淨業績成長 ${pct(s.wow)}，延續動能`,b:`本週淨業績 ${$n(s.net)}（上週 ${$n(s.prevNet)}）${top?'，主力是「'+top.name+'」':''}。把預算和版位集中在帶量商品，並確認庫存撐得到下一檔活動。`,
-      ct:`${P} 持續加溫`,cb:`${P} 這週淨業績 ${$n(s.net)}，比上週多 ${pct0(s.wow)}${top?'，賣最好的是「'+top.name+'」':''}。下週會把廣告和版位集中在這幾款，也會確認庫存夠用。`})}
+      ct:`${P} 持續加碼`,cb:`比上週多 ${pct0(s.wow)}，廣告集中在熱賣款。`})}
   PLATS.forEach(({k})=>{const s=S[k];if(s.yoy!=null&&s.yoy<=-.1){const P=PN[k];C.push({s:Math.abs(s.yoy)*100,t:`${P} 落後去年同期 ${pct(-s.yoy,false)}`,b:`本週訂購金額 ${$n(s.gross)}，去年同週估 ${$n(s.ly)}。對照去年同月做了哪些活動，評估今年是否補上同類檔期。`,
-    ct:`${P} 追上去年同期`,cb:`${P} 這週比去年同期少 ${pct0(s.yoy)}。我們會對照去年同月的檔期，看今年要不要補上類似的活動。`})}});
+    ct:`${P} 追上去年`,cb:`比去年同期少 ${pct0(s.yoy)}，會參考去年同月檔期補活動。`})}});
   const m=endD.getUTCMonth()+1,d=endD.getUTCDate();
   if(m===10||(m===11&&d<11)){const left=Math.round((Date.UTC(endD.getUTCFullYear(),10,11)-end)/DAY);
     C.push({s:25,t:'雙 11 檔期最後衝刺',b:`距離 11/11 還有 ${left} 天。確認三平台活動價、滿額門檻沒有互相打架，熱銷款備足庫存，並預排 11/10–11/11 的推播與廣告加碼。`,
-      ct:'雙 11 檔期準備',cb:`離 11/11 剩 ${left} 天。我們會確認三個平台的活動價和滿額門檻一致，熱賣款先備好庫存，11/10–11/11 再加強推播和廣告。`})}
+      ct:'雙 11 準備',cb:`剩 ${left} 天：統一三平台活動價、備足熱賣款，11/10–11/11 加強推播。`})}
   const tot=PLATS.reduce((a,{k})=>a+(S[k].net||0),0);
   if(tot){const lo=PLATS.map(p=>p.k).sort((a,b)=>(S[a].net||0)-(S[b].net||0))[0];const P=PN[lo];
     C.push({s:5,t:`拉高 ${P} 的業績占比`,b:`${P} 本週占三平台淨業績 ${pct((S[lo].net||0)/tot,false)}。挑另兩個平台賣得好的款，在 ${P} 補齊商品頁與活動，測試一週看轉換。`,
-      ct:`拉高 ${P} 業績`,cb:`${P} 這週占三個平台業績的 ${pct0((S[lo].net||0)/tot)}。我們會把另外兩個平台賣得好的商品補上 ${P}，先測一週看成效。`})}
+      ct:`拉高 ${P} 業績`,cb:`${P} 占 ${pct0((S[lo].net||0)/tot)}，會補上其他平台的熱賣款測試。`})}
   C.sort((a,b)=>b.s-a.s);const seen=new Set();return C.filter(c=>!seen.has(c.t)&&seen.add(c.t)).slice(0,3)}
 
 function adAdvice(client){const ad=MODEL.ads;if(!ad)return[];const C=[];const W=ad.metaWeeks,Mo=ad.metaMonths;
@@ -415,16 +415,16 @@ function adAdvice(client){const ad=MODEL.ads;if(!ad)return[];const C=[];const W=
   if(ctr0&&ctr1&&ctr1/ctr0<=.7){const swapC=ad.creatives.filter(c=>/換|疲乏|下架|續約/.test(c['建議']||'')&&!/續用/.test(c['建議']||''));
     const keep=ad.creatives.filter(c=>/續用/.test(c['建議']||'')).map(c=>c.KOL);
     C.push({s:60,t:'Meta 素材疲乏，雙 11 換上新影片',b:`點擊率從 ${Mo[0]['期間']} 的 ${pct(ctr0,false)} 掉到最近一週（${W[W.length-1]['期間']}）的 ${pct(ctr1,false)}。${swapC.length?'要處理的素材：'+swapC.map(c=>`${c.KOL}（${c['建議']}）`).join('、')+'。':''}${keep.length?'表現穩定、可續用：'+keep.join('、')+'。':''}新的 KOL 影片談好授權後直接投轉換目標。`,
-      ct:'更新廣告素材',cb:`Meta 廣告的點擊率從 ${Mo[0]['期間']} 的 ${pct(ctr0,false)}，降到最近一週的 ${pct(ctr1,false)}，代表舊影片大家看久了。雙 11 會換上新的 KOL 影片${keep.length?'，表現穩定的 '+keep.join('、')+' 會繼續投放':''}${swapC.length?'，'+swapC.map(c=>c.KOL).join('、')+' 的影片會替換或確認授權':''}。`})}
+      ct:'更新廣告素材',cb:`點擊率從 ${pct(ctr0,false)} 降到 ${pct(ctr1,false)}，雙 11 換上新 KOL 影片${keep.length?'，'+keep.join('、')+' 續用':''}。`})}
   const ga=ad.ga;if(ga){const ci=k=>ga.cols.findIndex(c=>c.includes(k));const gi=ci('Google 廣告'),mi=ci('Meta');const cr=ga.rows['轉換率（購買÷進站）']||[],st=ga.rows['平均停留（秒）']||[],vis=ga.rows['進站次數']||[],eng=ga.rows['互動率']||[];
     if(gi>=0&&mi>=0&&cr[gi]&&cr[mi]!=null&&cr[mi]/cr[gi]<.3)C.push({s:55,t:'Meta 帶來的流量品質差，先修版位與落地頁',b:`GA4（${ga.title}）Meta 廣告進站 ${(vis[mi]||0).toLocaleString()} 次，但平均只停留 ${st[mi]??'—'} 秒、互動率 ${pct(eng[mi],false)}，轉換率 ${(cr[mi]*100).toFixed(2)}%；Google 廣告是 ${(cr[gi]*100).toFixed(2)}%。請代理商排除 Audience Network 等誤點多的版位，廣告直接連到對應商品頁，不要連首頁。`,
-      ct:'調整 Meta 廣告的導流',cb:`Meta 廣告帶進官網的人很多（${(vis[mi]||0).toLocaleString()} 次），但平均只停留 ${st[mi]??'—'} 秒，下單比例比 Google 廣告低不少。我們會調整投放版位，讓廣告直接連到對應的商品頁，提高下單機會。`})}
+      ct:'調整 Meta 導流',cb:`進站 ${(vis[mi]||0).toLocaleString()} 次但平均只停留 ${st[mi]??'—'} 秒，會調整版位、直接連到商品頁。`})}
   if(ga&&ad.googleAgencyBuy===0){const gi=ga.cols.findIndex(c=>c.includes('Google 廣告'));const buy=(ga.rows['購買（筆）']||[])[gi],rev=(ga.rows['營收']||[])[gi];
     if(buy)C.push({s:50,t:'Google 廣告有帶單，但轉換追蹤沒接上',b:`代理商報表的 Google 購買是 0，但 GA4 顯示 ${ga.title} Google 廣告帶來 ${buy} 筆、營收 ${$n(rev)}。請代理商把 GA4 購買事件匯入 Google Ads，系統才能用購買來優化出價；修好之前不要因為「購買 0」砍 Google 預算。`,
-      ct:'補強 Google 廣告的購買追蹤',cb:`GA4 顯示 Google 廣告在 ${ga.title} 帶來 ${buy} 筆訂單、營收 ${$n(rev)}，但廣告後台還沒記到這些購買。我們會把購買追蹤接好，讓系統更準確地找到會下單的人。`})}
+      ct:'補上 Google 購買追蹤',cb:`Google 廣告帶來 ${buy} 筆、${$n(rev)}，後台還沒記錄，會接好追蹤。`})}
   const cpa=Mo.map(m=>n(m['每筆購買成本'])).filter(v=>v);const wcpa=W.length?n(W[W.length-1]['每筆購買成本']):null;
   if(cpa.length>=2&&cpa[cpa.length-1]<cpa[0])C.push({s:30,t:'Meta 每筆購買成本在下降，雙 11 可以加碼',b:`每筆購買成本 ${Mo.map(m=>m['期間']+' '+$n(m['每筆購買成本'])).join(' → ')}${wcpa?'，最近一週 '+$n(wcpa):''}。雙 11 期間預算往轉換目標、「狗狗背帶」受眾集中。`,
-    ct:'雙 11 廣告加碼',cb:`Meta 每帶來一筆訂單的成本一路下降（${Mo.map(m=>m['期間']+' '+$n(m['每筆購買成本'])).join(' → ')}）。雙 11 期間會把預算集中在「狗狗背帶」受眾和轉換型廣告。`});
+    ct:'雙 11 廣告加碼',cb:`每筆購買成本降到 ${$n(wcpa||cpa[cpa.length-1])}，雙 11 預算集中在轉換型廣告。`});
   if(!client){const lastP=W.length?W[W.length-1]['期間']:'';C.push({s:20,t:'請代理商補齊數據',b:`代理商資料只到 ${lastP||'—'}，也沒有購買金額，算不出 ROAS。請代理商每週提供素材明細與購買金額。`})}
   C.sort((a,b)=>b.s-a.s);return C.slice(0,3)}
 
@@ -488,11 +488,11 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
   const yoys=PLATS.filter(({k})=>S[k].yoy!=null).map(({k})=>`${PN[k]}${S[k].yoy>=0?'成長':'少了'} ${pct0(S[k].yoy)}`);
   let topItem=null;PLATS.forEach(({k})=>(T[k]||[]).forEach(x=>{if(x.amt&&(!topItem||x.amt>topItem.amt))topItem={...x,k}}));
   const ordUp=PLATS.map(p=>p.k).filter(k=>S[k].orders&&S[k].prevOrders&&S[k].orders/S[k].prevOrders-1>=.15);
-  const HL=[`這週三個平台淨業績合計 <b>${$n(totNet)}</b>、共 ${totOrd} 筆訂單，${tw==null?'':tw>=0?'比上週成長 '+pct0(tw):'比上週少 '+pct0(tw)}。`,
-    `${PN[best]} 是這週業績最好的平台，淨業績 ${$n(S[best].net)}${S[best].wow!=null?'（比上週'+(S[best].wow>=0?'多 ':'少 ')+pct0(S[best].wow)+'）':''}。`];
-  if(ordUp.length)HL.push(`${ordUp.map(k=>`${PN[k]}訂單數從 ${S[k].prevOrders} 筆增加到 ${S[k].orders} 筆`).join('；')}。`);
-  if(yoys.length)HL.push(`和去年同期相比，${yoys.join('、')}。`);
-  if(topItem)HL.push(`這週最熱賣的是 ${PN[topItem.k]} 的「${esc(topItem.name)}」，業績 ${$n(topItem.amt)}。`);
+  const HL=[`淨業績合計 <b>${$n(totNet)}</b>（${totOrd} 筆），${tw==null?'':tw>=0?'比上週 +'+pct0(tw):'比上週 −'+pct0(tw)}。`,
+    `${PN[best]} 業績最高：${$n(S[best].net)}。`];
+  if(ordUp.length)HL.push(ordUp.map(k=>`${PN[k]}訂單 ${S[k].prevOrders}→${S[k].orders} 筆`).join('；')+'。');
+  if(yoys.length)HL.push(`比去年同期：${PLATS.filter(({k})=>S[k].yoy!=null).map(({k})=>PN[k]+' '+(S[k].yoy>=0?'+':'−')+pct0(S[k].yoy)).join('、')}。`);
+  if(topItem)HL.push(`熱賣第一：「${esc(topItem.name)}」${$n(topItem.amt)}。`);
   const ad=MODEL.ads;const lw=ad&&ad.metaWeeks.length?ad.metaWeeks[ad.metaWeeks.length-1]:null;
   $('v-client').innerHTML=`<article class="client" id="clientDoc">
   <div class="chead blk"><div><div class="who" id="cWho">${esc(clientName())}</div><h1>週業績報告｜${wkLabel(w)}</h1></div><div class="meta">momo · 官網 · 蝦皮<br>製表日期 ${iso(Date.now())}</div></div>
@@ -501,10 +501,10 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
     <div class="ctiles blk">${PLATS.map(({k,n:nm,c})=>{const s=S[k];return`<div class="ctile" style="--c:${c}"><b>${nm}</b><div class="v num">${$n(s.net)}</div>
       <div class="sub">${s.orders??'—'} 筆訂單 · 比上週 ${pill(s.wow)}</div><div class="sub">比去年同期 ${s.yoy!=null?pill(s.yoy):'—（無去年資料）'}</div></div>`}).join('')}</div></section>
   <section class="sec"><h2 class="blk">熱賣商品 Top 5</h2><div class="tops">${top5Tables(T,true)}</div></section>
-  <section class="sec"><h2 class="blk">廣告成效</h2>${lw?`<p class="blk" style="margin:0">最近一週（${esc(lw['期間'])}）Meta 廣告花費 ${$n(n(lw['廣告花費']))}，帶來 ${n(lw['購買'])??'—'} 筆購買，平均每筆購買成本 ${$n(n(lw['每筆購買成本']))}。</p>`:''}${adTables(true)}</section>
+  <section class="sec"><h2 class="blk">廣告成效</h2>${lw?`<p class="blk" style="margin:0">${esc(lw['期間'])} Meta 花費 ${$n(n(lw['廣告花費']))}，購買 ${n(lw['購買'])??'—'} 筆，每筆 ${$n(n(lw['每筆購買成本']))}。</p>`:''}${adTables(true)}</section>
   <section class="sec"><h2 class="blk">下週操作方向</h2><div class="blk">${adviceList(A,'cadvice',true)}</div></section>
   <section class="sec"><h2 class="blk">廣告優化方向</h2><div class="blk">${adviceList(AA,'cadadvice',true)}</div></section>
-  <div class="notes blk">淨業績＝訂購金額扣掉取消和退貨。與去年同期比是用去年同月的平均每日業績估算。廣告數據依廣告後台與 GA4 的統計期間，可能和業績週期不完全一樣。</div>
+  <div class="notes blk">淨業績＝訂購扣除取消、退貨；去年同期以月平均估算；廣告數據期間依各後台。</div>
 </article>`}
 
 /* ================= 總覽 ================= */

@@ -605,7 +605,7 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
 let dbP=null;function getDb(){if(!window.claude||!claude.use)return Promise.resolve(null);return dbP??=claude.use('db').catch(()=>null)}
 const editId=w=>'w'+w.replace(/[^0-9]+/g,'-');
 // 圖片：壓成 JPEG 後存進網站資料庫（每張一筆，單筆上限 256KB），不另外依賴檔案空間
-let IMGS=[];let IMG_DEL=[];
+let IMGS=[];let IMG_DEL=[];let DIRTY=false;let CLIENT_W=null;
 function eStat(t,kind){const s=$('eStat');if(s){s.textContent=t;s.className='estat'+(kind?' '+kind:'')}}
 const ekey=e=>e.dataset.ek||e.id;
 function editables(){return[...document.querySelectorAll('#clientDoc [contenteditable]')].filter(e=>e.id!=='cExtra'&&ekey(e))}
@@ -615,20 +615,20 @@ async function readSaved(w){const db=await getDb();if(db){try{const s=await db.d
   try{return{d:JSON.parse(ls.get('pr.edit.'+editId(w))||'null'),db:null}}catch(e){return{d:null}}}
 function renderImgs(){const box=$('cImgs');if(!box)return;box.innerHTML=IMGS.map((im,i)=>`<figure class="eimg"><img src="${esc(im.url)}" alt="其他建議圖片 ${i+1}"><button class="btn noprint" type="button" data-del="${i}">刪除圖片</button></figure>`).join('');
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const [x]=IMGS.splice(+b.dataset.del,1);if(x&&x.saved)IMG_DEL.push(x.key);renderImgs();eStat('有未儲存的修改','warn')})}
-async function toJpegUrl(f){const src=URL.createObjectURL(f);try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+async function toJpegUrl(f){const src=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(new Error('讀檔失敗'));fr.readAsDataURL(f)});try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('瀏覽器無法讀取這個圖片格式'));i.src=src});
   let side=1400,q=.85,url='';
   for(let t=0;t<8;t++){const k=Math.min(1,side/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.naturalWidth*k));c.height=Math.max(1,Math.round(img.naturalHeight*k));
     const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);url=c.toDataURL('image/jpeg',q);
     if(url.length<=230000)return url;if(q>.6)q-=.1;else side=Math.round(side*.8)}
-  return url}finally{URL.revokeObjectURL(src)}}
+  return url}finally{}}
 async function addImages(files){files=[...files].filter(f=>f&&(/^image\//.test(f.type||'')||/\.(heic|heif|jpe?g|png|gif|webp)$/i.test(f.name||'')));
   if(!files.length){eStat('沒有讀到圖片檔，請選 JPG 或 PNG','warn');return}
   eStat('圖片處理中…');let n=0,bad=0;
-  for(const f of files){try{const url=await toJpegUrl(f);if(url.length>250000)throw 0;IMGS.push({key:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),url});n++}catch(e){bad++}}
-  renderImgs();eStat(n?`已加入 ${n} 張圖片${bad?`（${bad} 張格式不支援，請改用 JPG 或 PNG）`:''}，記得按「儲存修改」`:'這個圖片格式不支援，請改用 JPG 或 PNG','warn')}
-async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];IMG_DEL=[];
+  let why='';for(const f of files){try{const url=await toJpegUrl(f);if(url.length>250000)throw new Error('圖片太大');IMGS.push({key:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),url});n++}catch(e){bad++;why=e&&e.message||''}}
+  DIRTY=true;renderImgs();eStat(n?`已加入 ${n} 張圖片${bad?`（${bad} 張失敗：${why}）`:''}，記得按「儲存修改」`:`圖片沒有加入：${why||'請改用 JPG 或 PNG'}`,'warn')}
+async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];IMG_DEL=[];DIRTY=false;CLIENT_W=w;
   editables().forEach(e=>e.dataset.orig=e.textContent);
-  doc.addEventListener('input',()=>eStat('有未儲存的修改','warn'));
+  doc.addEventListener('input',()=>{DIRTY=true;eStat('有未儲存的修改','warn')});
   $('eSave').onclick=()=>saveEdits(w);$('eReset').onclick=()=>resetEdits(w);
   $('eImgIn').onchange=e=>{addImages([...e.target.files]);e.target.value=''};
   $('eImgBtn').onclick=()=>$('eImgIn').click();
@@ -655,10 +655,11 @@ async function saveEdits(w){const btn=$('eSave');btn.disabled=true;eStat('儲存
     const data={v:2,fields,extra:readTxt($('cExtra')).trim(),imgKeys:IMGS.filter(x=>x.saved).map(x=>x.key),savedAt:Date.now()};
     let ok=false;if(db){try{await db.doc('edits/'+editId(w)).set(data);ok=true}catch(e){}}
     ls.set('pr.edit.'+editId(w),JSON.stringify(data));
+    if(!(db&&!ok))DIRTY=false;
     if(db&&!ok)eStat('網站存檔失敗，先存在這台電腦；請稍後再按一次儲存','warn');
     else eStat((db?'已儲存到網站':'已儲存在這台電腦的瀏覽器')+(failImg?`，但有 ${failImg} 張圖片沒存成功，請再按一次儲存`:'')+`（${data.imgKeys.length} 張圖片）`,failImg?'warn':'ok')}
   finally{btn.disabled=false}}
-async function resetEdits(w){try{const db=await getDb();if(db){const s=await db.doc('edits/'+editId(w)).get();const ks=s.exists&&Array.isArray(s.data().imgKeys)?s.data().imgKeys:[];for(const k of ks){try{await db.doc(imgDoc(w,k)).delete()}catch(e){}}await db.doc('edits/'+editId(w)).delete()}}catch(e){}
+async function resetEdits(w){DIRTY=false;try{const db=await getDb();if(db){const s=await db.doc('edits/'+editId(w)).get();const ks=s.exists&&Array.isArray(s.data().imgKeys)?s.data().imgKeys:[];for(const k of ks){try{await db.doc(imgDoc(w,k)).delete()}catch(e){}}await db.doc('edits/'+editId(w)).delete()}}catch(e){}
   try{localStorage.removeItem('pr.edit.'+editId(w))}catch(e){}renderClient(w);eStat('已還原成自動產生的內容','ok')}
 
 /* ================= 總覽 ================= */
@@ -701,7 +702,7 @@ function route(){const v=view();Object.keys(VIEWS).forEach(k=>{$('v-'+k).hidden=
   $('pdfBtn').hidden=!['weekly','client'].includes(v)||!MODEL;$('pdfBtn').querySelector('span').textContent=v==='client'?'匯出客戶版 PDF':'匯出內部版 PDF';
   renderView()}
 function renderView(){if(!MODEL)return;const v=view();const w=$('week').value;
-  if(v==='overview')renderOverview();else if(v==='weekly'&&w)renderWeekly(w);else if(v==='ads')renderAdsPage();else if(v==='client'&&w)renderClient(w)}
+  if(v==='overview')renderOverview();else if(v==='weekly'&&w)renderWeekly(w);else if(v==='ads')renderAdsPage();else if(v==='client'&&w){if(DIRTY&&CLIENT_W===w&&$('clientDoc'))return;renderClient(w)}}
 function note(msg,kind){const el=$('note');if(!msg){el.hidden=true;return}el.textContent=msg;el.className='note'+(kind?' '+kind:'');el.hidden=false}
 function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,2600)}
 function stamp(ts,ok){$('updated').textContent=ts?'更新於 '+new Date(ts).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';$('dot').className='dot '+(ok?'ok':'warn')}

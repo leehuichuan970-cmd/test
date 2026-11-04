@@ -1,0 +1,640 @@
+<title>三平台業績儀表板</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout：左側紫色側欄（導覽＋重新整理），右側內容；每頁＝標題列＋卡片；窄螢幕時側欄變成頂部橫列 */
+:root{
+  --bg:#f3f1f7; --card:#ffffff; --ink:#1f1930; --muted:#6a6380; --line:#e4e0ec; --chip:#f0edf5;
+  --side:#4b1f74; --side-ink:#f4eefb; --side-muted:#cdb9e6; --side-hi:#6c3d98;
+  --accent:#7a3fb8; --momo:#d0306b; --web:#0a8a7a; --shopee:#e8680c;
+  --t1:#ece3f8; --t1-ink:#5a2d8c; --t2:#e1f1e1; --t2-ink:#2f6b2f; --t3:#fbe9b5; --t3-ink:#86610a; --t4:#fde3d6; --t4-ink:#9a4a1c;
+  --up:#1b7a3a; --down:#c42b2b; --upbg:#e3f4e8; --downbg:#fbe6e6;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,"SFMono-Regular",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15121c; --card:#1e1a28; --ink:#ece8f3; --muted:#a69fb8; --line:#302a3d; --chip:#272233;
+  --side:#2a1440; --side-ink:#f1eafa; --side-muted:#b39ad1; --side-hi:#43245f;
+  --accent:#b88ae6; --momo:#f06a9b; --web:#4cc2b1; --shopee:#ff9a52;
+  --t1:#2f2342; --t1-ink:#d6bdf5; --t2:#1f3322; --t2-ink:#9fd69f; --t3:#3a3015; --t3-ink:#f0cf74; --t4:#3d261a; --t4-ink:#f5b48e;
+  --up:#62d18b; --down:#ff7f7f; --upbg:#173826; --downbg:#3d1d1f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15121c; --card:#1e1a28; --ink:#ece8f3; --muted:#a69fb8; --line:#302a3d; --chip:#272233;
+  --side:#2a1440; --side-ink:#f1eafa; --side-muted:#b39ad1; --side-hi:#43245f;
+  --accent:#b88ae6; --momo:#f06a9b; --web:#4cc2b1; --shopee:#ff9a52;
+  --t1:#2f2342; --t1-ink:#d6bdf5; --t2:#1f3322; --t2-ink:#9fd69f; --t3:#3a3015; --t3-ink:#f0cf74; --t4:#3d261a; --t4-ink:#f5b48e;
+  --up:#62d18b; --down:#ff7f7f; --upbg:#173826; --downbg:#3d1d1f; color-scheme:dark}
+/* PDF 一律用淺色 */
+.pdfhost{--bg:#fff;--card:#fff;--ink:#1f1930;--muted:#6a6380;--line:#e4e0ec;--chip:#f0edf5;--accent:#7a3fb8;--momo:#d0306b;--web:#0a8a7a;--shopee:#e8680c;
+  --up:#1b7a3a;--down:#c42b2b;--upbg:#e3f4e8;--downbg:#fbe6e6;--t1:#ece3f8;--t1-ink:#5a2d8c;--t2:#e1f1e1;--t2-ink:#2f6b2f;--t3:#fbe9b5;--t3-ink:#86610a;--t4:#fde3d6;--t4-ink:#9a4a1c;
+  position:absolute;left:-12000px;top:0;width:760px;background:#fff;color:#1f1930;font-family:var(--f-body);font-size:13px;line-height:1.6;color-scheme:light}
+.pdfhost .blk{padding:6px 2px}
+.pdfhost .tops,.pdfhost .adgrid{grid-template-columns:1fr;gap:6px}
+.pdfhost .chead h1{font-size:26px}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,select,input{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
+.side{background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+  padding:22px 14px calc(16px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))}
+.brand{padding:4px 10px 18px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand b{display:block;font-size:20px;font-weight:900;letter-spacing:.02em}
+.brand span{font-size:13px;color:var(--side-muted)}
+.nav{display:flex;flex-direction:column;gap:4px;padding:14px 0;flex:1}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--side-ink);text-decoration:none;font-size:16px;font-weight:500}
+.nav a:hover{background:rgba(255,255,255,.08)}
+.nav a[aria-current="page"]{background:var(--side-hi);font-weight:700}
+.nav svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav .tag{margin-left:auto;font-size:11px;background:rgba(255,255,255,.16);border-radius:999px;padding:1px 8px}
+.side-foot{border-top:1px solid rgba(255,255,255,.12);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.refresh{display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border:1px solid rgba(255,255,255,.25);color:var(--side-ink);border-radius:10px;padding:10px;cursor:pointer;font-weight:700}
+.refresh:hover{background:rgba(255,255,255,.08)}
+.refresh svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+.refresh.busy svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.updated{font-size:12px;color:var(--side-muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#9a9a9a}
+.dot.ok{background:#3ccf6b}.dot.warn{background:#f0b429}
+
+main{min-width:0;padding-block:28px 48px;padding-left:max(28px,env(safe-area-inset-left,0px));padding-right:max(28px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.top h1{font-size:26px;font-weight:900}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:700;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn[disabled]{opacity:.6;cursor:progress}
+select,input[type=date],input[type=text]{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:14px;min-width:0}
+.note{font-size:13.5px;border-radius:10px;padding:10px 14px;background:var(--chip);color:var(--muted)}
+.note.err{background:var(--downbg);color:var(--down)}
+.note.ok{background:var(--upbg);color:var(--up)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-width:0}
+.card h2{font-size:17px;font-weight:700;margin-bottom:12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card h2 small,.sec small{font-size:12.5px;font-weight:400;color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end}
+.filters label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+@media (max-width:1000px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .l{font-size:14px;font-weight:700}
+.tile .v{font-size:30px;font-weight:700;line-height:1.15;font-family:var(--f-num);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .s{font-size:12.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.t1{background:var(--t1);color:var(--t1-ink)}.t2{background:var(--t2);color:var(--t2-ink)}.t3{background:var(--t3);color:var(--t3-ink)}.t4{background:var(--t4);color:var(--t4-ink)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+@media (max-width:1000px){.grid2{grid-template-columns:1fr}}
+.chartbox{position:relative;height:300px}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right;white-space:nowrap}
+tfoot td{font-weight:700}
+.pill{display:inline-block;font-family:var(--f-num);font-weight:700;font-size:13px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.pill.up{background:var(--upbg);color:var(--up)}
+.pill.down{background:var(--downbg);color:var(--down)}
+
+/* 週報（沿用前一版） */
+.paper{display:flex;flex-direction:column;gap:26px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.head h1{font-size:28px;font-weight:900}
+.head .meta{color:var(--muted);font-size:13px;text-align:right}
+.eyebrow{font-size:12.5px;color:var(--muted);letter-spacing:.06em}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec>h2{font-size:18px;font-weight:900;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.total{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;padding:14px 18px;background:var(--chip);border-radius:12px}
+.total .lbl{font-size:12.5px;color:var(--muted)}
+.total .v{font-size:22px;font-weight:700}
+.sub{font-size:12.5px;color:var(--muted)}
+.plats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){main .plats{grid-template-columns:1fr}}
+.plat{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.plat header{display:flex;justify-content:space-between;align-items:baseline}
+.plat h3{font-size:17px;color:var(--c)}
+.big{font-size:26px;font-weight:700;line-height:1.15}
+.kpis{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:0}
+.kpis div{min-width:0}
+.kpis dt{font-size:12px;color:var(--muted)}
+.kpis dd{margin:2px 0 0;display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.kpis small{font-size:11.5px;color:var(--muted)}
+.spark{width:100%;height:38px;display:block}
+.spark-cap{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.tops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){main .tops{grid-template-columns:1fr}}
+.top5{min-width:0}
+.top5 h3{font-size:15px;color:var(--c);margin-bottom:4px;display:flex;gap:8px;align-items:center}
+.top5 h3::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c)}
+td.rk{font-family:var(--f-num);font-weight:700;color:var(--c);width:1.6em}
+.ret{display:inline-block;font-size:11px;color:var(--down);background:var(--downbg);border-radius:4px;padding:0 5px;margin-left:4px;white-space:nowrap}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+.advice{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:a}
+.advice li{counter-increment:a;display:grid;grid-template-columns:2em minmax(0,1fr);gap:2px 10px;padding:12px 16px;border:1px solid var(--line);border-radius:12px}
+.advice li::before{content:counter(a);grid-row:span 2;font-weight:900;font-size:24px;line-height:1.1;color:var(--accent)}
+.advice .t{font-weight:700}
+.advice .b{font-size:14px;max-width:75ch}
+[contenteditable]:focus{outline:2px dashed var(--accent);outline-offset:3px;border-radius:4px}
+.adgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.adgrid>*,.tops>*,.plats>*{min-width:0}
+@media (max-width:1000px){main .adgrid{grid-template-columns:1fr}}
+.notes{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.notes ul{margin:4px 0 0;padding-left:1.2em}
+
+/* 客戶版 */
+.client{display:flex;flex-direction:column;gap:22px}
+.chead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:3px solid var(--accent)}
+.chead .who{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.06em}
+.chead h1{font-size:28px;font-weight:900}
+.chead .meta{font-size:12.5px;color:var(--muted);text-align:right}
+.hl{margin:0;padding:14px 18px 14px 34px;background:var(--t1);color:var(--ink);border-radius:12px;display:flex;flex-direction:column;gap:6px}
+.hl li::marker{color:var(--accent)}
+.ctiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){main .ctiles{grid-template-columns:1fr}}
+.ctile{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.ctile b{color:var(--c);font-size:15px}
+.ctile .v{font-size:24px;font-weight:700}
+.badge{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);background:var(--t1);border-radius:999px;padding:1px 9px;margin-left:6px;vertical-align:middle}
+
+.dz{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px dashed var(--line);border-radius:12px;cursor:pointer}
+.dz:hover,.dz.over{border-color:var(--accent)}
+.dz input{position:absolute;opacity:0;width:1px;height:1px}
+.form{display:flex;flex-direction:column;gap:14px;max-width:720px}
+.form label{display:flex;flex-direction:column;gap:6px;font-size:13.5px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row input{flex:1 1 280px}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--card);padding:9px 18px;border-radius:999px;font-size:14px;z-index:20}
+
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side,.nav,.side-foot{min-width:0}
+  .side{position:sticky;top:0;height:auto;z-index:5;padding:10px max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px))}
+  .brand{display:none}
+  .nav{flex-direction:row;overflow-x:auto;padding:0;gap:4px;flex:none}
+  .nav a{padding:8px 12px;font-size:14px;white-space:nowrap}
+  .nav svg{display:none}
+  .side-foot{flex-direction:row;border:0;padding-top:8px;justify-content:space-between}
+  .refresh{padding:6px 12px}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:18px}
+  .tile .v{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){.refresh.busy svg{animation:none}}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand"><b>三平台業績儀表板</b><span id="brandSub">momo × 官網 × 蝦皮</span></div>
+    <nav class="nav" aria-label="頁面">
+      <a href="#overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>總覽</a>
+      <a href="#weekly"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>週報<span class="tag">內部</span></a>
+      <a href="#ads"><svg viewBox="0 0 24 24"><path d="M3 12h3l3-8 4 16 3-8h5"/></svg>廣告成效</a>
+      <a href="#client"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>客戶版報告</a>
+      <a href="#source"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>資料管理</a>
+    </nav>
+    <div class="side-foot">
+      <button class="refresh" id="refresh" type="button"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>重新整理</button>
+      <div class="updated"><span class="dot" id="dot"></span><span id="updated">—</span></div>
+    </div>
+  </aside>
+  <main>
+    <div class="top"><h1 id="pgTitle">總覽</h1><div class="actions" id="actions">
+      <select id="week" aria-label="週期" hidden></select>
+      <button class="btn primary" id="pdfBtn" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg><span>匯出 PDF</span></button>
+    </div></div>
+    <div class="note" id="note" role="status" hidden></div>
+
+    <section class="view" id="v-overview">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="card"><div class="filters">
+          <label for="fPlat">平台<select id="fPlat"><option value="all">全部</option><option value="momo">momo</option><option value="web">官網</option><option value="shopee">蝦皮</option></select></label>
+          <label for="fStart">起始日期<input type="date" id="fStart"></label>
+          <label for="fEnd">結束日期<input type="date" id="fEnd"></label>
+          <span class="sub" id="fCmp"></span>
+        </div></div>
+        <div class="tiles" id="tiles"></div>
+        <div class="grid2">
+          <div class="card"><h2>每日淨業績趨勢</h2><div class="chartbox"><canvas id="cTrend"></canvas></div></div>
+          <div class="card"><h2>各平台淨業績<small>本期 vs 前期</small></h2><div class="chartbox"><canvas id="cPlat"></canvas></div></div>
+        </div>
+        <div class="card"><h2>每日明細<small>淨業績＝訂購 − 取消 − 退貨</small></h2><div class="tbl" id="dailyTbl"></div></div>
+      </div>
+    </section>
+    <section class="view card" id="v-weekly" hidden></section>
+    <section class="view card" id="v-ads" hidden></section>
+    <section class="view card" id="v-client" hidden></section>
+    <section class="view card" id="v-source" hidden>
+      <div class="form">
+        <h2>資料來源</h2>
+        <p class="sub" style="margin:0">儀表板直接讀 Google Drive 上的業績 Excel。按左下角「重新整理」就會抓最新版本，不用每次下載上傳。</p>
+        <label for="fileLink">Google Drive 檔案連結<div class="row"><input type="text" id="fileLink" placeholder="貼上試算表網址"><button class="btn" id="saveLink" type="button">儲存並重新整理</button></div></label>
+        <label for="clientName">客戶名稱（顯示在客戶版報告）<div class="row"><input type="text" id="clientName"><button class="btn" id="saveClient" type="button">儲存</button></div></label>
+        <div><h2 style="margin-top:8px">沒辦法連 Google Drive 時</h2>
+          <label class="dz" id="dz" for="file"><input type="file" id="file" accept=".xlsx,.xls"><span><b>上傳 Excel</b>（拖進來或點這裡）<br><span class="sub">Google 試算表 →「檔案」→「下載」→「Microsoft Excel (.xlsx)」</span></span></label></div>
+        <div><h2 style="margin-top:8px">每週更新步驟</h2><ol class="steps">
+          <li>在 Google 試算表更新「業績表」「月業績」「廣告」各分頁。</li>
+          <li>打開這個儀表板，按左下角「重新整理」。第一次會問你是否允許讀取 Google Drive，按允許。</li>
+          <li>「週報」看內部版；「客戶版報告」確認文字後按「匯出 PDF」寄給客戶。建議文字都可以直接點進去改。</li></ol></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script id="seed" type="application/json">/*SEED*/{"weekly":{"momo":{"9/28-10/4":{"orders":14,"gross":23220,"cancel":4140,"ret":4210,"net":14870,"prev":15110},"10/5-10/11":{"orders":12,"gross":22060,"cancel":0,"ret":10000,"net":12060,"prev":23220},"10/12-10/18":{"orders":9,"gross":14750,"cancel":0,"ret":2280,"net":12470,"prev":22060},"10/19-10/25":{"orders":12,"gross":21910,"cancel":0,"ret":980,"net":20930,"prev":14750},"10/26-11/1":{"orders":11,"gross":27020,"cancel":0,"ret":7920,"net":19100,"prev":21910}},"web":{"9/28-10/4":{"orders":11,"gross":29206,"cancel":0,"ret":0,"net":29206,"prev":23142},"10/5-10/11":{"orders":7,"gross":20848,"cancel":0,"ret":380,"net":20468,"prev":29206},"10/12-10/18":{"orders":14,"gross":29539,"cancel":0,"ret":0,"net":29539,"prev":20848},"10/19-10/25":{"orders":18,"gross":47545,"cancel":0,"ret":6573,"net":40972,"prev":29539},"10/26-11/1":{"orders":13,"gross":33554,"cancel":0,"ret":0,"net":33554,"prev":47545}},"shopee":{"9/28-10/4":{"orders":7,"gross":13094,"cancel":null,"ret":null,"net":13094,"prev":17796},"10/5-10/11":{"orders":20,"gross":37624,"cancel":null,"ret":null,"net":37624,"prev":13094},"10/12-10/18":{"orders":18,"gross":31380,"cancel":null,"ret":null,"net":31380,"prev":37624},"10/19-10/25":{"orders":39,"gross":45930,"cancel":null,"ret":null,"net":45930,"prev":31380},"10/26-11/1":{"orders":54,"gross":46174,"cancel":null,"ret":null,"net":46174,"prev":45930}}},"daily":{"momo":{"2026-10-01":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-02":{"orders":1,"gross":1680,"cancel":0,"ret":0,"net":1680},"2026-10-03":{"orders":3,"gross":2800,"cancel":0,"ret":460,"net":2340},"2026-10-04":{"orders":3,"gross":7300,"cancel":4140,"ret":0,"net":3160},"2026-10-05":{"orders":1,"gross":1980,"cancel":0,"ret":3860,"net":-1880},"2026-10-06":{"orders":1,"gross":2280,"cancel":0,"ret":0,"net":2280},"2026-10-07":{"orders":1,"gross":1380,"cancel":0,"ret":0,"net":1380},"2026-10-08":{"orders":3,"gross":5840,"cancel":0,"ret":2280,"net":3560},"2026-10-09":{"orders":4,"gross":7020,"cancel":0,"ret":0,"net":7020},"2026-10-10":{"orders":0,"gross":0,"cancel":0,"ret":2180,"net":-2180},"2026-10-11":{"orders":2,"gross":3560,"cancel":0,"ret":1680,"net":1880},"2026-10-12":{"orders":1,"gross":1380,"cancel":0,"ret":0,"net":1380},"2026-10-13":{"orders":1,"gross":2960,"cancel":0,"ret":0,"net":2960},"2026-10-14":{"orders":4,"gross":4090,"cancel":0,"ret":0,"net":4090},"2026-10-15":{"orders":2,"gross":3760,"cancel":0,"ret":0,"net":3760},"2026-10-16":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-17":{"orders":1,"gross":2560,"cancel":0,"ret":2280,"net":280},"2026-10-18":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-19":{"orders":3,"gross":2860,"cancel":0,"ret":0,"net":2860},"2026-10-20":{"orders":2,"gross":2460,"cancel":0,"ret":0,"net":2460},"2026-10-21":{"orders":1,"gross":2180,"cancel":0,"ret":0,"net":2180},"2026-10-22":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-23":{"orders":0,"gross":0,"cancel":0,"ret":980,"net":-980},"2026-10-24":{"orders":5,"gross":8470,"cancel":0,"ret":0,"net":8470},"2026-10-25":{"orders":1,"gross":5940,"cancel":0,"ret":0,"net":5940},"2026-10-26":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-27":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-28":{"orders":6,"gross":14060,"cancel":0,"ret":5940,"net":8120},"2026-10-29":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-30":{"orders":2,"gross":7820,"cancel":0,"ret":1980,"net":5840},"2026-10-31":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-11-01":{"orders":3,"gross":5140,"cancel":0,"ret":0,"net":5140},"2026-11-02":{"orders":1,"gross":130,"cancel":0,"ret":0,"net":130}},"web":{"2026-10-01":{"orders":2,"gross":5166,"cancel":0,"ret":0,"net":5166},"2026-10-02":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-03":{"orders":1,"gross":1930,"cancel":0,"ret":0,"net":1930},"2026-10-04":{"orders":3,"gross":6540,"cancel":0,"ret":0,"net":6540},"2026-10-05":{"orders":2,"gross":7040,"cancel":0,"ret":380,"net":6660},"2026-10-06":{"orders":1,"gross":948,"cancel":0,"ret":0,"net":948},"2026-10-07":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-08":{"orders":2,"gross":7720,"cancel":0,"ret":0,"net":7720},"2026-10-09":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-10":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-11":{"orders":2,"gross":5140,"cancel":0,"ret":0,"net":5140},"2026-10-12":{"orders":2,"gross":3960,"cancel":0,"ret":0,"net":3960},"2026-10-13":{"orders":2,"gross":2872,"cancel":0,"ret":0,"net":2872},"2026-10-14":{"orders":4,"gross":11923,"cancel":0,"ret":0,"net":11923},"2026-10-15":{"orders":2,"gross":2760,"cancel":0,"ret":0,"net":2760},"2026-10-16":{"orders":2,"gross":4232,"cancel":0,"ret":0,"net":4232},"2026-10-17":{"orders":2,"gross":3792,"cancel":0,"ret":0,"net":3792},"2026-10-18":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-19":{"orders":5,"gross":15820,"cancel":0,"ret":0,"net":15820},"2026-10-20":{"orders":2,"gross":4714,"cancel":0,"ret":0,"net":4714},"2026-10-21":{"orders":2,"gross":3750,"cancel":0,"ret":1980,"net":1770},"2026-10-22":{"orders":2,"gross":3213,"cancel":0,"ret":3213,"net":0},"2026-10-23":{"orders":2,"gross":5468,"cancel":0,"ret":0,"net":5468},"2026-10-24":{"orders":4,"gross":10620,"cancel":0,"ret":1380,"net":9240},"2026-10-25":{"orders":1,"gross":3960,"cancel":0,"ret":0,"net":3960},"2026-10-26":{"orders":0,"gross":0,"cancel":0,"ret":0,"net":0},"2026-10-27":{"orders":2,"gross":4734,"cancel":0,"ret":0,"net":4734},"2026-10-28":{"orders":4,"gross":11910,"cancel":0,"ret":0,"net":11910},"2026-10-29":{"orders":4,"gross":11050,"cancel":0,"ret":0,"net":11050},"2026-10-30":{"orders":1,"gross":2760,"cancel":0,"ret":0,"net":2760},"2026-10-31":{"orders":1,"gross":2280,"cancel":0,"ret":0,"net":2280},"2026-11-01":{"orders":1,"gross":820,"cancel":0,"ret":0,"net":820},"2026-11-02":{"orders":2,"gross":5640,"cancel":0,"ret":0,"net":5640}},"shopee":{"2026-10-01":{"orders":2,"gross":3621,"net":3621},"2026-10-02":{"orders":1,"gross":1880,"net":1880},"2026-10-03":{"orders":2,"gross":3411,"net":3411},"2026-10-04":{"orders":0,"gross":0,"net":0},"2026-10-05":{"orders":5,"gross":7804,"net":7804},"2026-10-06":{"orders":2,"gross":3860,"net":3860},"2026-10-07":{"orders":4,"gross":5191,"net":5191},"2026-10-08":{"orders":0,"gross":0,"net":0},"2026-10-09":{"orders":2,"gross":6101,"net":6101},"2026-10-10":{"orders":4,"gross":7012,"net":7012},"2026-10-11":{"orders":3,"gross":7656,"net":7656},"2026-10-12":{"orders":4,"gross":5612,"net":5612},"2026-10-13":{"orders":3,"gross":7222,"net":7222},"2026-10-14":{"orders":2,"gross":2770,"net":2770},"2026-10-15":{"orders":2,"gross":3821,"net":3821},"2026-10-16":{"orders":3,"gross":3805,"net":3805},"2026-10-17":{"orders":1,"gross":1880,"net":1880},"2026-10-18":{"orders":3,"gross":6270,"net":6270},"2026-10-19":{"orders":6,"gross":10332,"net":10332},"2026-10-20":{"orders":6,"gross":8433,"net":8433},"2026-10-21":{"orders":6,"gross":3121,"net":3121},"2026-10-22":{"orders":3,"gross":2659,"net":2659},"2026-10-23":{"orders":5,"gross":5922,"net":5922},"2026-10-24":{"orders":6,"gross":2280,"net":2280},"2026-10-25":{"orders":7,"gross":13183,"net":13183},"2026-10-26":{"orders":12,"gross":10993,"net":10993},"2026-10-27":{"orders":8,"gross":6662,"net":6662},"2026-10-28":{"orders":6,"gross":6132,"net":6132},"2026-10-29":{"orders":8,"gross":6712,"net":6712},"2026-10-30":{"orders":7,"gross":5752,"net":5752},"2026-10-31":{"orders":6,"gross":6543,"net":6543},"2026-11-01":{"orders":7,"gross":3380,"net":3380},"2026-11-02":{"orders":6,"gross":4750,"net":4750}}},"weeks":["9/28-10/4","10/5-10/11","10/12-10/18","10/19-10/25","10/26-11/1"],"top5":{"9/28-10/4":{"momo":[{"name":"丹麥犬胸背帶 Air款-XS","qty":3,"bad":1,"net":2,"amt":3360},{"name":"丹麥犬胸背帶 Pro款-XL","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬 Libra 矽膠餐碗墊-大","qty":2,"bad":0,"net":2,"amt":1960},{"name":"丹麥犬胸背帶 Pro款-XS","qty":1,"bad":0,"net":1,"amt":1880}],"web":[{"name":"Urban Classic 多功能防水牽繩","qty":2,"bad":0,"net":2,"amt":4360},{"name":"Comfort Walk Air 胸背帶-海洋藍","qty":2,"bad":0,"net":2,"amt":4060},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2280},{"name":"Comfort Walk Pro 胸背帶-熱情紫","qty":1,"bad":0,"net":1,"amt":2180},{"name":"Comfort Walk Pro 胸背帶-森林綠","qty":1,"bad":0,"net":1,"amt":2180}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":3,"bad":0,"net":3,"amt":6162},{"name":"丹麥犬 Air 胸背帶","qty":3,"bad":0,"net":3,"amt":5127},{"name":"丹麥犬 Urban Rope 牽繩","qty":1,"bad":0,"net":1,"amt":1415},{"name":"Bugalugs 蘆薈舒緩保濕凝膠","qty":1,"bad":0,"net":1,"amt":390}]},"10/5-10/11":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬胸背帶 Air款-L","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬胸背帶 Pro款-S","qty":2,"bad":1,"net":1,"amt":1980},{"name":"丹麥犬胸背帶 Air款-S","qty":1,"bad":0,"net":1,"amt":1880},{"name":"丹麥犬胸背帶 Air款-M","qty":1,"bad":0,"net":1,"amt":1880}],"web":[{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":4142},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2219},{"name":"Urban Classic 多功能防水牽繩","qty":1,"bad":0,"net":1,"amt":2128},{"name":"Urban Trail 隨行包牽繩","qty":1,"bad":0,"net":1,"amt":2062},{"name":"Comfort Walk Pro 胸背帶-森林綠","qty":1,"bad":0,"net":1,"amt":1932}],"shopee":[{"name":"丹麥犬 Air 胸背帶","qty":8,"bad":0,"net":8,"amt":14990},{"name":"丹麥犬 Pro 胸背帶","qty":6,"bad":0,"net":6,"amt":12329},{"name":"Icelandic+ 海鮮寵物零食","qty":9,"bad":0,"net":9,"amt":2852},{"name":"丹麥犬 Urban Trail 隨行包牽繩","qty":1,"bad":0,"net":1,"amt":2014},{"name":"丹麥犬 Urban Rope 牽繩","qty":1,"bad":0,"net":1,"amt":1441}]},"10/12-10/18":{"momo":[{"name":"丹麥犬 Urban Rope 繩索牽繩","qty":3,"bad":0,"net":3,"amt":4440},{"name":"丹麥犬胸背帶 Go款-XS","qty":2,"bad":0,"net":2,"amt":2560},{"name":"丹麥犬胸背帶 Pro款-L","qty":2,"bad":1,"net":1,"amt":2280},{"name":"丹麥犬 Libra 矽膠餐碗墊-小","qty":2,"bad":0,"net":2,"amt":1560},{"name":"丹麥犬胸背帶 Go款-S","qty":1,"bad":0,"net":1,"amt":1380}],"web":[{"name":"Comfort Walk Pro 胸背帶-檸檬黃","qty":3,"bad":0,"net":3,"amt":5882},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":2,"bad":0,"net":2,"amt":4232},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3872},{"name":"Comfort Walk Air 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3572},{"name":"Comfort Walk Pro 胸背帶-海洋藍","qty":1,"bad":0,"net":1,"amt":1980}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":6,"bad":0,"net":6,"amt":12471},{"name":"丹麥犬 Air 胸背帶","qty":5,"bad":0,"net":5,"amt":9625},{"name":"丹麥犬 Urban Rope 牽繩","qty":3,"bad":0,"net":3,"amt":4341},{"name":"丹麥犬 Urban Freestyle 牽繩","qty":1,"bad":0,"net":1,"amt":1357},{"name":"丹麥犬 Urban Explorer 項圈","qty":1,"bad":0,"net":1,"amt":1262}]},"10/19-10/25":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":3,"bad":0,"net":3,"amt":6840},{"name":"丹麥犬胸背帶 Pro款-M","qty":2,"bad":0,"net":2,"amt":3960},{"name":"丹麥犬胸背帶 Air款-L","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":1,"bad":0,"net":1,"amt":2180},{"name":"丹麥犬胸背帶 Pro款-S","qty":1,"bad":0,"net":1,"amt":1980}],"web":[{"name":"Urban Freestyle 輕便風寵物牽繩","qty":7,"bad":0,"net":7,"amt":9384},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":4,"bad":0,"net":4,"amt":8275},{"name":"Urban Trail 隨行包牽繩","qty":2,"bad":0,"net":2,"amt":4160},{"name":"Comfort Walk Air 胸背帶-沙灰","qty":2,"bad":0,"net":2,"amt":3760},{"name":"Comfort Walk Air 胸背帶-摩卡棕","qty":2,"bad":0,"net":2,"amt":3526}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":7,"bad":0,"net":7,"amt":13866},{"name":"丹麥犬 Air 胸背帶","qty":7,"bad":0,"net":7,"amt":12493},{"name":"丹麥犬 Urban Rope 牽繩","qty":2,"bad":0,"net":2,"amt":2856},{"name":"丹麥犬 Urban Freestyle 牽繩","qty":2,"bad":0,"net":2,"amt":2702},{"name":"Fiboo Fiboone Puppy 磨牙玩具","qty":19,"bad":0,"net":19,"amt":2661}]},"10/26-11/1":{"momo":[{"name":"丹麥犬胸背帶 Pro款-L","qty":3,"bad":1,"net":2,"amt":4560},{"name":"丹麥犬胸背帶 Air款-XS","qty":2,"bad":0,"net":2,"amt":3360},{"name":"丹麥犬 Urban Rope 繩索牽繩","qty":3,"bad":1,"net":2,"amt":2960},{"name":"丹麥犬胸背帶 Pro款-XL","qty":1,"bad":0,"net":1,"amt":2280},{"name":"丹麥犬 Urban Classic 防水牽繩","qty":2,"bad":1,"net":1,"amt":2180}],"web":[{"name":"Urban Classic 多功能防水牽繩","qty":2,"bad":0,"net":2,"amt":4304},{"name":"Urban Rope 繩索寵物牽繩","qty":2,"bad":0,"net":2,"amt":2910},{"name":"Urban Freestyle 輕便風寵物牽繩","qty":2,"bad":0,"net":2,"amt":2622},{"name":"Comfort Walk Pro 胸背帶-摩卡棕","qty":1,"bad":0,"net":1,"amt":2280},{"name":"Comfort Walk Pro 胸背帶-沙灰","qty":1,"bad":0,"net":1,"amt":1980}],"shopee":[{"name":"丹麥犬 Pro 胸背帶","qty":8,"bad":0,"net":8,"amt":16328},{"name":"丹麥犬 Air 胸背帶","qty":3,"bad":0,"net":3,"amt":6123},{"name":"Fiboo Fiboone Dental 潔牙玩具","qty":12,"bad":0,"net":12,"amt":3347},{"name":"Fiboo Slow Fiboowl 慢食碗-深藍","qty":7,"bad":0,"net":7,"amt":2908},{"name":"Fiboo Fiboone 耐咬玩具","qty":9,"bad":0,"net":9,"amt":2514}]}},"monthly":{"momo":{"2025-01":35695,"2025-02":65963,"2025-03":57239,"2025-04":41462,"2025-05":82150,"2025-06":89591,"2025-07":49010,"2025-08":75539,"2025-09":49493,"2025-10":43254,"2025-11":73072,"2025-12":58288,"2026-01":48570,"2026-02":53286,"2026-03":68395,"2026-04":41010,"2026-05":60097,"2026-06":93047,"2026-07":103471,"2026-08":61475,"2026-09":56840,"2026-10":92380},"web":{"2025-01":15682,"2025-02":28879,"2025-03":19090,"2025-04":14890,"2025-05":48265,"2025-06":20392,"2025-07":42206,"2025-08":40783,"2025-09":37059,"2025-10":75399,"2025-11":83054,"2025-12":29581,"2026-01":49908,"2026-02":23516,"2026-03":50690,"2026-04":53568,"2026-05":70370,"2026-06":58798,"2026-07":104318,"2026-08":135566,"2026-09":118021,"2026-10":144301},"shopee":{}},"lowStock":{"momo":[{"name":"贈 Frii 萬用便當袋（芭蕾舞者1、機器戰士5）","qty":6,"eta":"芭蕾舞者約10/31賣完；整體約11/25"},{"name":"Frii 護脊書包 Easy 22L（獨角亮紫2、湛藍虎1）","qty":3,"eta":"約2027/1下旬"},{"name":"Frii 護脊書包 Retro 30L（天空藍1、開心粉3、紫藍2）","qty":6,"eta":"約2027/4"},{"name":"Bugalugs 防蟲蚤噴霧 200ml","qty":1,"eta":"近30天無出庫"},{"name":"Bugalugs 寵物除臭噴霧（植萃鎮靜）","qty":2,"eta":"近30天無出庫"},{"name":"Icelandic 鱈魚脆片","qty":1,"eta":"近30天無出庫"},{"name":"Icelandic 海鮮雙享塊 85g（鱈魚鯡魚1、鱈魚鮭魚1）","qty":2,"eta":"近30天無出庫"},{"name":"Icelandic 迷你海鮮雙享塊 48.2g","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 L","qty":1,"eta":"近30天無出庫"},{"name":"Record Player One 雙柄球玩具","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 S","qty":1,"eta":"近30天無出庫"},{"name":"Record 潔牙繩結玩具 M","qty":1,"eta":"近30天無出庫"},{"name":"Record 軟木塞絨毛貓咪玩具（長頸鹿1、大象1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 毛線小鳥貓咪玩具（橘、藍、綠各1）","qty":3,"eta":"近30天無出庫"},{"name":"Record 彈力繩結玩具（狐狸1、乳牛1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 皮革耐咬繩結玩具（淺藍怪物1、紅色怪物1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 皮革耐咬繩結玩具 深藍怪物","qty":1,"eta":"近30天無出庫"},{"name":"Record 發聲寵物玩偶（拉拉狐狸1、猴子1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 發聲藏食玩具（舵、變速箱、鐘型罩各1）","qty":3,"eta":"近30天無出庫"},{"name":"Record 耐咬網球玩具（5cm 1、6.5cm 1）","qty":2,"eta":"近30天無出庫"},{"name":"Record 耐咬網球玩具 10cm","qty":1,"eta":"近30天無出庫"},{"name":"Record 乾洗慕斯 小麥蛋白 200ml","qty":1,"eta":"近30天無出庫"}],"web":[{"name":"Comfort Walk Pro 胸背帶-摩卡棕｜L","qty":4,"eta":"約 11/27 賣完"},{"name":"Urban Classic 多功能防水牽繩｜摩卡棕 / L","qty":0,"eta":"已缺貨"},{"name":"Urban Freestyle 輕便風寵物牽繩｜檸檬黃 / S","qty":1,"eta":"約 11/12 賣完"},{"name":"Flexy 拾便袋扣｜沙灰","qty":1,"eta":"約 11/12 賣完"},{"name":"BIO草本植萃洗毛精-Omega3","qty":2,"eta":"約 11/27 賣完"},{"name":"Flexy 拾便袋扣｜尊貴黑","qty":0,"eta":"已缺貨"},{"name":"Comfort Walk Pro 胸背帶-熱情紫｜L","qty":0,"eta":"已缺貨"},{"name":"Urban Rope 繩索寵物牽繩｜沙灰 / S","qty":0,"eta":"已缺貨"},{"name":"Kronborg 炻器陶瓷寵物餐碗｜拿鐵棕 / 中","qty":0,"eta":"已缺貨"},{"name":"Urban Trail 隨行包牽繩｜沙灰 / S","qty":0,"eta":"已缺貨"}],"shopee":[]},"lastDaily":"2026-11-02","fetchedAt":1793763595529,"baseY":2026,"baseM":11,"ads":{"metaMonths":[{"類型":"月","期間":"7/17–7/31","天數":15,"廣告花費":10661,"每日花費":711,"曝光數":97840,"點擊數":10989,"點擊率":0.1123160262,"每次點擊成本":0.97,"連結點擊":7176,"貼文互動":32784,"加入購物車":83,"購買":13,"每筆購買成本":820,"加購率（加購÷連結點擊）":0.01156633222,"購買率（購買÷加購）":0.156626506,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":"7/17 開始投放"},{"類型":"月","期間":"8/1–8/31","天數":31,"廣告花費":31747,"每日花費":1024,"曝光數":271643,"點擊數":20974,"點擊率":0.07721163438778102,"每次點擊成本":1.51,"連結點擊":17428,"貼文互動":85792,"加入購物車":233,"購買":37,"每筆購買成本":858,"加購率（加購÷連結點擊）":0.013369290796419554,"購買率（購買÷加購）":0.15879828326180256,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":"柴犬小宅影片 8/17 授權到期下架"},{"類型":"月","期間":"9/1–9/30","天數":30,"廣告花費":17577,"每日花費":586,"曝光數":130418,"點擊數":7656,"點擊率":0.058703553190510516,"每次點擊成本":2.3,"連結點擊":5700,"貼文互動":35149,"加入購物車":131,"購買":25,"每筆購買成本":703,"加購率（加購÷連結點擊）":0.02298245614035088,"購買率（購買÷加購）":0.19083969465648856,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"月","期間":"10/1–10/21","天數":21,"廣告花費":14078,"每日花費":670,"曝光數":132550,"點擊數":8061,"點擊率":0.06081478687287816,"每次點擊成本":1.75,"連結點擊":6932,"貼文互動":44391,"加入購物車":110,"購買":25,"每筆購買成本":563,"加購率（加購÷連結點擊）":0.015868436237738027,"購買率（購買÷加購）":0.22727272727272727,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":"10/22 後代理商尚未提供"}],"metaWeeks":[{"類型":"週","期間":"7/17–7/22","天數":6,"廣告花費":4332,"每日花費":722,"曝光數":44829,"點擊數":4810,"點擊率":0.10729661602980213,"每次點擊成本":0.9,"連結點擊":2771,"貼文互動":15066,"加入購物車":27,"購買":3,"每筆購買成本":1444,"加購率（加購÷連結點擊）":0.009743774810537712,"購買率（購買÷加購）":0.1111111111111111,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"7/23–7/29","天數":7,"廣告花費":4612,"每日花費":659,"曝光數":38204,"點擊數":4540,"點擊率":0.11883572400795728,"每次點擊成本":1.02,"連結點擊":3152,"貼文互動":12569,"加入購物車":46,"購買":9,"每筆購買成本":512,"加購率（加購÷連結點擊）":0.014593908629441625,"購買率（購買÷加購）":0.1956521739130435,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"7/30–7/31","天數":2,"廣告花費":1717,"每日花費":859,"曝光數":14807,"點擊數":1639,"點擊率":0.1106908894441818,"每次點擊成本":1.05,"連結點擊":1253,"貼文互動":5149,"加入購物車":10,"購買":1,"每筆購買成本":1717,"加購率（加購÷連結點擊）":0.007980845969672785,"購買率（購買÷加購）":0.1,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"8/1–8/5","天數":5,"廣告花費":4954,"每日花費":991,"曝光數":40971,"點擊數":4513,"點擊率":0.11015108247296869,"每次點擊成本":1.1,"連結點擊":3936,"貼文互動":15203,"加入購物車":50,"購買":7,"每筆購買成本":708,"加購率（加購÷連結點擊）":0.012703252032520325,"購買率（購買÷加購）":0.14,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"8/6–8/12","天數":7,"廣告花費":6670,"每日花費":953,"曝光數":53183,"點擊數":5812,"點擊率":0.10928304157343512,"每次點擊成本":1.15,"連結點擊":4961,"貼文互動":16987,"加入購物車":37,"購買":6,"每筆購買成本":1112,"加購率（加購÷連結點擊）":0.007458173755291272,"購買率（購買÷加購）":0.16216216216216217,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"8/13–8/19","天數":7,"廣告花費":6777,"每日花費":968,"曝光數":55627,"點擊數":4550,"點擊率":0.08179481187193269,"每次點擊成本":1.49,"連結點擊":3796,"貼文互動":15661,"加入購物車":61,"購買":12,"每筆購買成本":565,"加購率（加購÷連結點擊）":0.0160695468914647,"購買率（購買÷加購）":0.19672131147540983,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"8/20–8/26","天數":7,"廣告花費":6493,"每日花費":928,"曝光數":51491,"點擊數":2937,"點擊率":0.057039094210638755,"每次點擊成本":2.21,"連結點擊":2317,"貼文互動":16697,"加入購物車":51,"購買":8,"每筆購買成本":812,"加購率（加購÷連結點擊）":0.0220112214069918,"購買率（購買÷加購）":0.1568627450980392,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"8/27–8/31","天數":5,"廣告花費":6853,"每日花費":1371,"曝光數":70371,"點擊數":3162,"點擊率":0.04493328217589632,"每次點擊成本":2.17,"連結點擊":2418,"貼文互動":21244,"加入購物車":34,"購買":4,"每筆購買成本":1713,"加購率（加購÷連結點擊）":0.014061207609594707,"購買率（購買÷加購）":0.11764705882352941,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"9/1–9/9","天數":9,"廣告花費":5618,"每日花費":624,"曝光數":42539,"點擊數":2415,"點擊率":0.056771433272996545,"每次點擊成本":2.33,"連結點擊":1755,"貼文互動":10993,"加入購物車":43,"購買":9,"每筆購買成本":624,"加購率（加購÷連結點擊）":0.0245014245014245,"購買率（購買÷加購）":0.20930232558139536,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"9/10–9/16","天數":7,"廣告花費":4271,"每日花費":610,"曝光數":29437,"點擊數":1762,"點擊率":0.059856643000305736,"每次點擊成本":2.42,"連結點擊":1291,"貼文互動":7579,"加入購物車":16,"購買":3,"每筆購買成本":1424,"加購率（加購÷連結點擊）":0.012393493415956624,"購買率（購買÷加購）":0.1875,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"9/17–9/30","天數":14,"廣告花費":7688,"每日花費":549,"曝光數":58442,"點擊數":3479,"點擊率":0.05952910578008966,"每次點擊成本":2.21,"連結點擊":2654,"貼文互動":16577,"加入購物車":72,"購買":13,"每筆購買成本":591,"加購率（加購÷連結點擊）":0.027128862094951016,"購買率（購買÷加購）":0.18055555555555555,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"10/1–10/7","天數":7,"廣告花費":4831,"每日花費":690,"曝光數":46070,"點擊數":2821,"點擊率":0.061232906446711526,"每次點擊成本":1.71,"連結點擊":2516,"貼文互動":15719,"加入購物車":32,"購買":7,"每筆購買成本":690,"加購率（加購÷連結點擊）":0.012718600953895072,"購買率（購買÷加購）":0.21875,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"10/8–10/14","天數":7,"廣告花費":4579,"每日花費":654,"曝光數":43970,"點擊數":2685,"點擊率":0.06106436206504435,"每次點擊成本":1.71,"連結點擊":2228,"貼文互動":14615,"加入購物車":40,"購買":7,"每筆購買成本":654,"加購率（加購÷連結點擊）":0.017953321364452424,"購買率（購買÷加購）":0.175,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""},{"類型":"週","期間":"10/15–10/21","天數":7,"廣告花費":4668,"每日花費":667,"曝光數":42510,"點擊數":2555,"點擊率":0.0601035050576335,"每次點擊成本":1.83,"連結點擊":2188,"貼文互動":14057,"加入購物車":38,"購買":11,"每筆購買成本":424,"加購率（加購÷連結點擊）":0.01736745886654479,"購買率（購買÷加購）":0.2894736842105263,"購買金額（待代理商提供）":"","ROAS（購買金額÷花費）":"","備註":""}],"ga":{"title":"2026/10（10/1–10/27）","cols":["Google 廣告","Meta 廣告","直接輸入網址","社群自然流量","自然搜尋","全站"],"rows":{"進站次數":[1635,8319,1318,692,495,12895],"互動率":[0.559,0.0935,0.3323,0.5737,0.5758,0.2343],"平均停留（秒）":[56,3,20,49,64,17],"購買（筆）":[16,6,11,8,2,45],"營收":[32222,18810,30602,18423,5740,109828],"轉換率（購買÷進站）":[0.009785932722,0.0007212405337,0.008345978756,0.01156069364,0.00404040404,0.003489724699],"廣告花費":[null,null,null,null,null,0],"ROAS（營收÷花費）":[null,null,null,null,null,null]}},"creatives":[{"素材名稱":"POST_KOL-Check雀可-影片_0729-0831","KOL":"雀可","投放目標":"轉換","上線／授權期間":"7/29–8/31（貼文附 92折折扣碼 Check）","被評為第 1 名的期間":"8 月整月","最佳成績":"購買 21 筆","占當期比例":"占 8 月購買 57%","評價":"8 月帶單主力，但有折扣碼加持","建議":"不想打折的話，改成 KOL 專屬送禮碼複製這個模式"},{"素材名稱":"POST_KOL-本丸-影片_0717","KOL":"本丸","投放目標":"轉換","上線／授權期間":"7/17 起","被評為第 1 名的期間":"7/17–7/31、10/1–10/14","最佳成績":"7 月購買 8 筆","占當期比例":"占 7 月購買 62%","評價":"開播初期最強，10 月仍有帶單","建議":"雙11 續用"},{"素材名稱":"POST_KOL-咪吉MIJI-影片_0717","KOL":"咪吉","投放目標":"轉換","上線／授權期間":"7/17 起","被評為第 1 名的期間":"9 月、10/1–10/21","最佳成績":"9 月 7 筆、10/1–21 7 筆","占當期比例":"各占 28%","評價":"9–10 月最穩定的轉換素材","建議":"雙11 續用，同時準備新素材替換"},{"素材名稱":"POST_KOL-愛咬樹枝的胖大叔-影片_0717","KOL":"愛咬樹枝的胖大叔","投放目標":"轉換","上線／授權期間":"7/17 起","被評為第 1 名的期間":"7/17–7/22、9/1–9/16","最佳成績":"9/1–16 購買 4 筆","占當期比例":"占 33%","評價":"偶爾領先，不穩定","建議":"觀察，成本高就關"},{"素材名稱":"POST_KOL-炭吉小狗-影片_0908-1007","KOL":"炭吉小狗","投放目標":"轉換","上線／授權期間":"9/8–10/7","被評為第 1 名的期間":"10/1–10/7","最佳成績":"購買 2 筆","占當期比例":"占 29%","評價":"授權到 10/7","建議":"確認是否已下架或要續約"},{"素材名稱":"POST_KOL-柴犬小宅-影片_0717-0816","KOL":"柴犬小宅","投放目標":"流量","上線／授權期間":"7/17–8/16（授權 1 個月，8/17 下架）","被評為第 1 名的期間":"7/17–8/31","最佳成績":"連結點擊 10,616，點擊率 16.11%","占當期比例":"占 8 月連結點擊 61%","評價":"點擊率最高，但沒有被列為帶單素材","建議":"這類素材適合累積再行銷名單"},{"素材名稱":"POST_KOL-托托&醬醬-影片_0717","KOL":"托托&醬醬","投放目標":"流量","上線／授權期間":"7/17 起","被評為第 1 名的期間":"9 月","最佳成績":"連結點擊 2,355，點擊率 11.25%","占當期比例":"占 9 月連結點擊 41%","評價":"9 月流量主力","建議":"可續用"},{"素材名稱":"POST_KOL-苦瓜-影片_0717","KOL":"苦瓜","投放目標":"流量","上線／授權期間":"7/17 起","被評為第 1 名的期間":"9/1–9/9、10/1–10/21","最佳成績":"連結點擊 5,368，點擊率 7.31%","占當期比例":"占 10/1–21 連結點擊 77%","評價":"點擊率從 8.29% 一路掉到 7.31%","建議":"素材疲乏，雙11 換新"}],"googleAgencyBuy":0,"agencyName":"威旭數位"},"source":"src.xlsx"}</script>
+<script>
+const DEFAULT_FILE='1_-8H_MX45yJT-r4YdRWIwsdFru1EzHrI';
+const PLATS=[{k:'momo',n:'momo',c:'var(--momo)'},{k:'web',n:'官網',c:'var(--web)'},{k:'shopee',n:'蝦皮',c:'var(--shopee)'}];
+const PN=Object.fromEntries(PLATS.map(p=>[p.k,p.n]));
+let MODEL=null;
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const $=id=>document.getElementById(id);
+
+/* ================= 解析 Excel ================= */
+function platKey(s){if(s==null)return null;s=String(s);if(/momo/i.test(s))return'momo';if(s.includes('官網'))return'web';if(s.includes('蝦皮'))return'shopee';return null}
+function rowsOf(ws){if(!ws||!ws['!ref'])return[];const e=XLSX.utils.decode_range(ws['!ref']).e;
+  return XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:true,range:XLSX.utils.encode_range({s:{r:0,c:0},e})})}
+const isWeek=v=>typeof v==='string'&&/^\s*\d{1,2}\/\d{1,2}\s*[-–~]\s*\d{1,2}\/\d{1,2}\s*$/.test(v);
+const normWeek=v=>v.replace(/\s/g,'').replace(/[–~]/,'-');
+const txt=v=>v==null?'':String(v).trim();
+const n=v=>typeof v==='number'&&isFinite(v)?v:(typeof v==='string'&&v.trim()!==''&&!isNaN(+v.replace(/,/g,''))?+v.replace(/,/g,''):null);
+function serial(s){const d=new Date(Math.round((s-25569)*864e5));return{y:d.getUTCFullYear(),m:d.getUTCMonth()+1,d:d.getUTCDate()}}
+const pad=x=>String(x).padStart(2,'0');
+const ym=(y,m)=>y+'-'+pad(m);
+const ymd=o=>`${o.y}-${pad(o.m)}-${pad(o.d)}`;
+
+function parseWorkbook(wb){
+  const names=wb.SheetNames;
+  const pick=(name,probe)=>wb.Sheets[name]?rowsOf(wb.Sheets[name]):(()=>{for(const s of names){if(s==='週報')continue;const R=rowsOf(wb.Sheets[s]);if(R.some(r=>r.some(c=>txt(c).includes(probe))))return R}return[]})();
+  const R=pick('業績表','一週業績');const M=pick('月業績','年月');
+  const model={weekly:{momo:{},web:{},shopee:{}},daily:{momo:{},web:{},shopee:{}},weeks:[],top5:{},monthly:{momo:{},web:{},shopee:{}},lowStock:{momo:[],web:[],shopee:[]},lastDaily:null,fetchedAt:Date.now()};
+  const FIELD={'訂單數':'orders','訂購金額':'gross','取消金額':'cancel','退貨金額':'ret','淨業績':'net','前一週訂購金額':'prev'};
+  // 每日業績
+  let last=0;
+  R.forEach((row,r)=>row.forEach((c,ci)=>{
+    if(c!=='日期'||typeof row[ci+1]!=='number')return;
+    const p=platKey(R[r+1]&&R[r+1][ci-1])||platKey(row[ci-1]);
+    const cols=[];for(let j=ci+1;j<row.length;j++)if(typeof row[j]==='number'&&row[j]>40000&&row[j]<60000)cols.push([j,ymd(serial(row[j]))]);
+    cols.forEach(([j])=>{if(row[j]>last)last=row[j]});
+    if(!p)return;
+    for(let rr=r+1;rr<=r+9&&rr<R.length;rr++){const lab=txt(R[rr][ci]);if(lab==='日期')break;const f=FIELD[lab];if(!f)continue;
+      cols.forEach(([j,d])=>{const v=n(R[rr][j]);if(v==null)return;(model.daily[p][d]??={})[f]=v})}
+  }));
+  if(last){const d=serial(last);model.lastDaily=ymd(d);model.baseY=d.y;model.baseM=d.m}else{const t=new Date();model.baseY=t.getFullYear();model.baseM=t.getMonth()+1}
+  // 一週業績
+  const weekSet=new Set();
+  R.forEach((row,r)=>{row.forEach((c,ci)=>{
+    if(c!=='日期'||!isWeek(row[ci+1]))return;
+    const p=platKey(row[ci-1])||platKey(R[r-1]&&R[r-1][ci-1]);if(!p)return;
+    const cols=[];for(let j=ci+1;isWeek(row[j]);j++)cols.push([j,normWeek(row[j])]);
+    for(let rr=r+1;rr<=r+9&&rr<R.length;rr++){const lab=txt(R[rr][ci]);if(lab==='日期')break;const f=FIELD[lab];if(!f)continue;
+      cols.forEach(([j,w])=>{(model.weekly[p][w]??={})[f]=n(R[rr][j])})}
+    cols.forEach(([,w])=>weekSet.add(w));
+  })});
+  // Top 5
+  R.forEach((row,r)=>{row.forEach((c,ci)=>{
+    if(txt(c)!=='週期')return;
+    const pr=R[r-1]||[];const starts=[];pr.forEach((v,j)=>{const p=platKey(v);if(p&&j>ci)starts.push([j,p])});
+    starts.sort((a,b)=>a[0]-b[0]);
+    const segs=starts.map(([s,p],i)=>{const end=i+1<starts.length?starts[i+1][0]:row.length;const idx=k=>{for(let j=s;j<end;j++)if(txt(row[j])===k)return j;return-1};
+      return{p,name:idx('商品名稱'),qty:idx('訂購數'),bad:idx('取消/退貨數'),net:idx('淨銷量'),amt:idx('淨業績')}});
+    for(let rr=r+1;rr<R.length&&isWeek(R[rr][ci]);rr++){const w=normWeek(R[rr][ci]);const T=(model.top5[w]??={momo:[],web:[],shopee:[]});
+      segs.forEach(s=>{if(s.name<0)return;const nm=txt(R[rr][s.name]);if(!nm)return;
+        T[s.p].push({name:nm,qty:n(R[rr][s.qty]),bad:n(R[rr][s.bad])||0,net:n(R[rr][s.net]),amt:n(R[rr][s.amt])})})}
+  })});
+  // 低庫存
+  R.forEach((row,r)=>{const ni=row.findIndex(v=>txt(v)==='商品名稱');const qi=row.findIndex(v=>txt(v)==='目前可賣量');if(ni<0||qi<0)return;
+    let p=null;for(const k of[1,2])(R[r-k]||[]).forEach(v=>{p=p||platKey(v)});if(!p)return;const ei=row.findIndex(v=>txt(v)==='預估售完');
+    for(let rr=r+1;rr<R.length;rr++){const nm=txt(R[rr][ni]);if(!nm||txt(R[rr][ni-1])==='備註')break;model.lowStock[p].push({name:nm,qty:n(R[rr][qi]),eta:ei>=0?txt(R[rr][ei]):''})}});
+  // 月業績
+  M.forEach((row,r)=>{row.forEach((c,ci)=>{if(c!=='年月')return;const ai=row.indexOf('訂購金額');if(ai<0)return;
+    let p=null;for(const k of[1,2,3])(M[r-k]||[]).forEach(v=>{p=p||platKey(v)});if(!p)return;
+    for(let rr=r+1;rr<M.length&&typeof M[rr][ci]==='number';rr++){const d=serial(M[rr][ci]);const v=n(M[rr][ai]);if(v!=null)model.monthly[p][ym(d.y,d.m)]=v}})});
+  model.ads=parseAds(wb);
+  model.weeks=[...weekSet].map(w=>({w,start:weekStart(w,model)})).sort((a,b)=>a.start-b.start).map(x=>x.w);
+  return model;
+}
+function parseAds(wb){const ads={metaMonths:[],metaWeeks:[],ga:null,creatives:[],googleAgencyBuy:null,agencyName:''};
+  const A=wb.Sheets['廣告代理商數據']?rowsOf(wb.Sheets['廣告代理商數據']):[];
+  A.forEach((row,r)=>{const t=row.map(txt);
+    if(t.includes('類型')&&t.includes('期間')&&t.includes('廣告花費')){
+      for(let rr=r+1;rr<A.length;rr++){const typ=txt(A[rr][0]);if(typ!=='月'&&typ!=='週')break;const o={};t.forEach((h,j)=>{if(h)o[h]=A[rr][j]});(typ==='月'?ads.metaMonths:ads.metaWeeks).push(o)}}
+    if(t.includes('素材名稱')&&t.includes('評價')&&t.includes('建議')){
+      for(let rr=r+1;rr<A.length&&txt(A[rr][0]);rr++){const o={};t.forEach((h,j)=>{if(h)o[h]=txt(A[rr][j])});ads.creatives.push(o)}}
+    const m=t.find(x=>/代理商：/.test(x));if(m)ads.agencyName=(m.match(/代理商：([^｜)）]+)/)||[])[1]||''});
+  const G=wb.Sheets['廣告分析']?rowsOf(wb.Sheets['廣告分析']):[];
+  G.forEach((row,r)=>{const lab=txt(row[1]);
+    if(lab.startsWith('指標｜')){const cols=[];row.forEach((v,j)=>{if(j>1&&txt(v))cols.push([j,txt(v)])});const rows={};
+      for(let rr=r+1;rr<G.length&&txt(G[rr][1]);rr++){rows[txt(G[rr][1])]=cols.map(([j])=>n(G[rr][j]))}
+      if((rows['購買（筆）']||[]).some(v=>v!=null))ads.ga={title:lab.replace('指標｜','').replace(/，[^）)]*再補/,''),cols:cols.map(c=>c[1]),rows}}
+    if(/google/i.test(txt(row[0]))){for(let rr=r;rr<r+8&&rr<G.length;rr++){if(txt(G[rr][1])==='購買'){const vs=G[rr].slice(2).map(n).filter(v=>v!=null);if(vs.length)ads.googleAgencyBuy=vs[vs.length-1]}}}});
+  return ads}
+function weekStart(w,m){const[a]=w.split('-');const[mm,dd]=a.split('/').map(Number);const y=mm>m.baseM+1?m.baseY-1:m.baseY;return Date.UTC(y,mm-1,dd)}
+
+/* ================= 計算 ================= */
+const DAY=864e5;
+const dim=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+const iso=t=>new Date(t).toISOString().slice(0,10);
+const parseIso=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10));
+function lastYearEst(p,start){const mon=MODEL.monthly[p];let sum=0;
+  for(let i=0;i<7;i++){const d=new Date(start+i*DAY);const y=d.getUTCFullYear()-1,m=d.getUTCMonth()+1;const v=mon[ym(y,m)];if(v==null)return null;sum+=v/dim(y,m)}
+  return Math.round(sum)}
+function stats(w){const i=MODEL.weeks.indexOf(w);const pw=i>0?MODEL.weeks[i-1]:null;const start=weekStart(w,MODEL);const out={};
+  PLATS.forEach(({k})=>{const cur=MODEL.weekly[k][w]||{};const prv=pw?MODEL.weekly[k][pw]||{}:{};
+    const gross=cur.gross??null;const prevGross=prv.gross??cur.prev??null;const ly=lastYearEst(k,start);
+    const net=cur.net??gross,prevNet=prv.net??prv.gross??null;
+    out[k]={gross,net,orders:cur.orders??null,cancel:cur.cancel||0,ret:cur.ret||0,prevGross,prevNet,prevOrders:prv.orders??null,
+      wow:net!=null&&prevNet?net/prevNet-1:null,ly,yoy:gross!=null&&ly?gross/ly-1:null,
+      aov:gross&&cur.orders?gross/cur.orders:null,prevAov:prv.gross&&prv.orders?prv.gross/prv.orders:null,
+      series:MODEL.weeks.slice(0,i+1).slice(-8).map(x=>{const o=MODEL.weekly[k][x]||{};return o.net??o.gross??null})}});
+  return out}
+function rangeSum(p,a,b){const o={orders:0,gross:0,cancel:0,ret:0,net:0,days:0};
+  for(let t=a;t<=b;t+=DAY){const d=(MODEL.daily[p]||{})[iso(t)];if(!d)continue;o.days++;
+    o.orders+=d.orders||0;o.gross+=d.gross||0;o.cancel+=d.cancel||0;o.ret+=d.ret||0;o.net+=d.net??((d.gross||0)-(d.cancel||0)-(d.ret||0))}
+  return o}
+
+/* ================= 文字工具 ================= */
+const $n=v=>v==null?'—':'NT$'+Math.round(v).toLocaleString('zh-TW');
+const pct=(v,sign=true)=>v==null?'—':(sign&&v>0?'+':'')+(v*100).toFixed(1)+'%';
+const pct0=v=>v==null?'—':Math.abs(v*100).toFixed(v!=null&&Math.abs(v)>=1?0:1)+'%';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill=v=>v==null?'<span class="pill">—</span>':`<span class="pill ${v>=0?'up':'down'}">${v>=0?'▲':'▼'} ${Math.abs(v*100).toFixed(1)}%</span>`;
+const wkLabel=w=>w.replace('-','–');
+const tidy=s=>String(s).replace(/([\u4e00-\u9fff]) +(?=[\u4e00-\u9fff「（])/g,'$1').replace(/([\u4e00-\u9fff])([A-Za-z0-9])/g,'$1 $2').replace(/([A-Za-z0-9%])([\u4e00-\u9fff])/g,'$1 $2');
+const shortName=s=>{const[x,y]=s.split('｜');return y?`${x.trim()}（${y.trim().replace(/\s*\/\s*/g,'/')}）`:s};
+
+/* ================= 建議（內部＋客戶版文字） ================= */
+function advice(w,S){const C=[];const T=MODEL.top5[w]||{momo:[],web:[],shopee:[]};
+  const end=weekStart(w,MODEL)+6*DAY;const endD=new Date(end);
+  let worst=null;PLATS.forEach(({k})=>{const s=S[k];if(!s.gross)return;const r=(s.cancel+s.ret)/s.gross;if(!worst||r>worst.r)worst={k,r,amt:s.cancel+s.ret}});
+  if(worst&&worst.r>=.15){const items=(T[worst.k]||[]).filter(x=>x.bad>0).map(x=>x.name);const P=PN[worst.k];
+    C.push({s:worst.r*200,t:`${P} 退貨率偏高，先找出原因`,b:`本週取消＋退貨 ${$n(worst.amt)}，占訂購金額 ${pct(worst.r,false)}。${items.length?'Top 5 裡有退貨的：'+items.join('、')+'。':''}逐筆查退貨原因；如果多是尺寸不合，在商品頁補量測教學與尺寸對照表，下單後主動跟客人確認尺寸。`,
+      ct:`${P} 退貨偏多，調整商品頁說明`,cb:`${P} 這週取消加退貨共 ${$n(worst.amt)}，大約占訂購金額的 ${pct0(worst.r)}${items.length?'，主要是'+items.join('、'):''}。我們會先整理退貨原因，如果多半是尺寸不合，會在商品頁補上量測教學和尺寸對照表，讓客人下單前比較好選。`})}
+  const hits=[];PLATS.forEach(({k})=>{(T[k]||[]).forEach(it=>{(MODEL.lowStock[k]||[]).forEach(l=>{const base=l.name.split('｜')[0].trim();
+    if((base===it.name||it.name.includes(base)||base.includes(it.name))&&(l.qty!=null&&l.qty<=1||/缺貨/.test(l.eta)))hits.push({k,it:it.name,ls:l})})})});
+  if(hits.length){const h3=hits.slice(0,3);const list=h3.map(h=>`${PN[h.k]}「${h.ls.name}」可賣 ${h.ls.qty??'?'} 件${h.ls.eta?'（'+h.ls.eta+'）':''}`).join('；');
+    C.push({s:55+hits.length*3,t:'熱銷款快斷貨，本週先補貨',b:`${list}。這些都在本週 Top 5，缺貨會直接掉單。建議本週下單補貨；補到之前，把廣告和版位移到還有庫存的顏色或尺寸。`,
+      ct:'熱賣款補貨',cb:`${h3.map(h=>shortName(h.ls.name)).join('、')} 是這週的熱賣商品，庫存已經快沒了（有幾款已經賣完）。我們會盡快安排補貨；到貨前，廣告會先推還有庫存的顏色和尺寸。`})}
+  let dn=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow<=-.15&&(!dn||s.wow<S[dn].wow))dn=k});
+  if(dn){const s=S[dn];const ser=s.series.filter(v=>v!=null);const prevPeak=ser.length>2&&s.prevNet>=Math.max(...ser.slice(0,-1));const P=PN[dn];
+    C.push({s:Math.abs(s.wow)*120,t:`${P} 淨業績比上週少 ${pct(-s.wow,false)}，拉回舊客`,b:`本週淨業績 ${$n(s.net)}，上週 ${$n(s.prevNet)}${prevPeak?'（上週是近幾週最高，跌幅有一部分是基期偏高）':''}。用會員推播（LINE／EDM）搭配正在跑的滿額活動喚回舊客，同時檢查廣告預算或活動是否在本週結束。`,
+      ct:`${P} 把回購帶回來`,cb:`${P} 這週淨業績 ${$n(s.net)}，比上週少 ${pct0(s.wow)}${prevPeak?'；上週剛好是近幾週的高點，所以落差看起來比較大':''}。下週會用 LINE 和 EDM 提醒老客人，搭配現在的滿額活動，把回購帶回來。`})}
+  PLATS.forEach(({k})=>{const s=S[k];if(!s.orders||!s.prevOrders||!s.aov||!s.prevAov)return;const og=s.orders/s.prevOrders-1,ag=s.aov/s.prevAov-1;
+    if(og>=.15&&ag<=-.1){const cheap=(T[k]||[]).filter(x=>x.amt&&x.net&&x.amt/x.net<600).map(x=>x.name);const P=PN[k];
+      C.push({s:45,t:`${P} 訂單變多但客單下降，用組合拉高客單`,b:`訂單 ${s.prevOrders}→${s.orders} 筆（${pct(og)}），客單價 ${$n(s.prevAov)}→${$n(s.aov)}。${cheap.length?'帶量的是低單價品：'+cheap.join('、')+'。':''}把低價小物設成加價購，或和主力胸背帶綁組合價，讓每筆訂單金額往上走。`,
+        ct:`${P} 用組合價提高每筆金額`,cb:`${P} 這週訂單從 ${s.prevOrders} 筆增加到 ${s.orders} 筆，但平均每筆金額從 ${$n(s.prevAov)} 降到 ${$n(s.aov)}${cheap.length?'，主要是'+cheap.join('、')+'這類小物賣得很好':''}。下週會把小物做成加價購，或和胸背帶搭成組合價，讓每筆訂單的金額拉高。`})}});
+  let upk=null;PLATS.forEach(({k})=>{const s=S[k];if(s.wow!=null&&s.wow>=.15&&(!upk||s.wow>S[upk].wow))upk=k});
+  if(upk){const s=S[upk];const top=(T[upk]||[])[0];const P=PN[upk];
+    C.push({s:s.wow*80,t:`${P} 淨業績成長 ${pct(s.wow)}，延續動能`,b:`本週淨業績 ${$n(s.net)}（上週 ${$n(s.prevNet)}）${top?'，主力是「'+top.name+'」':''}。把預算和版位集中在帶量商品，並確認庫存撐得到下一檔活動。`,
+      ct:`${P} 持續加溫`,cb:`${P} 這週淨業績 ${$n(s.net)}，比上週多 ${pct0(s.wow)}${top?'，賣最好的是「'+top.name+'」':''}。下週會把廣告和版位集中在這幾款，也會確認庫存夠用。`})}
+  PLATS.forEach(({k})=>{const s=S[k];if(s.yoy!=null&&s.yoy<=-.1){const P=PN[k];C.push({s:Math.abs(s.yoy)*100,t:`${P} 落後去年同期 ${pct(-s.yoy,false)}`,b:`本週訂購金額 ${$n(s.gross)}，去年同週估 ${$n(s.ly)}。對照去年同月做了哪些活動，評估今年是否補上同類檔期。`,
+    ct:`${P} 追上去年同期`,cb:`${P} 這週比去年同期少 ${pct0(s.yoy)}。我們會對照去年同月的檔期，看今年要不要補上類似的活動。`})}});
+  const m=endD.getUTCMonth()+1,d=endD.getUTCDate();
+  if(m===10||(m===11&&d<11)){const left=Math.round((Date.UTC(endD.getUTCFullYear(),10,11)-end)/DAY);
+    C.push({s:25,t:'雙 11 檔期最後衝刺',b:`距離 11/11 還有 ${left} 天。確認三平台活動價、滿額門檻沒有互相打架，熱銷款備足庫存，並預排 11/10–11/11 的推播與廣告加碼。`,
+      ct:'雙 11 檔期準備',cb:`離 11/11 剩 ${left} 天。我們會確認三個平台的活動價和滿額門檻一致，熱賣款先備好庫存，11/10–11/11 再加強推播和廣告。`})}
+  const tot=PLATS.reduce((a,{k})=>a+(S[k].net||0),0);
+  if(tot){const lo=PLATS.map(p=>p.k).sort((a,b)=>(S[a].net||0)-(S[b].net||0))[0];const P=PN[lo];
+    C.push({s:5,t:`拉高 ${P} 的業績占比`,b:`${P} 本週占三平台淨業績 ${pct((S[lo].net||0)/tot,false)}。挑另兩個平台賣得好的款，在 ${P} 補齊商品頁與活動，測試一週看轉換。`,
+      ct:`拉高 ${P} 業績`,cb:`${P} 這週占三個平台業績的 ${pct0((S[lo].net||0)/tot)}。我們會把另外兩個平台賣得好的商品補上 ${P}，先測一週看成效。`})}
+  C.sort((a,b)=>b.s-a.s);const seen=new Set();return C.filter(c=>!seen.has(c.t)&&seen.add(c.t)).slice(0,3)}
+
+function adAdvice(client){const ad=MODEL.ads;if(!ad)return[];const C=[];const W=ad.metaWeeks,Mo=ad.metaMonths;
+  const ctr0=Mo[0]&&n(Mo[0]['點擊率']),ctr1=W.length?n(W[W.length-1]['點擊率']):null;
+  if(ctr0&&ctr1&&ctr1/ctr0<=.7){const swapC=ad.creatives.filter(c=>/換|疲乏|下架|續約/.test(c['建議']||'')&&!/續用/.test(c['建議']||''));
+    const keep=ad.creatives.filter(c=>/續用/.test(c['建議']||'')).map(c=>c.KOL);
+    C.push({s:60,t:'Meta 素材疲乏，雙 11 換上新影片',b:`點擊率從 ${Mo[0]['期間']} 的 ${pct(ctr0,false)} 掉到最近一週（${W[W.length-1]['期間']}）的 ${pct(ctr1,false)}。${swapC.length?'要處理的素材：'+swapC.map(c=>`${c.KOL}（${c['建議']}）`).join('、')+'。':''}${keep.length?'表現穩定、可續用：'+keep.join('、')+'。':''}新的 KOL 影片談好授權後直接投轉換目標。`,
+      ct:'更新廣告素材',cb:`Meta 廣告的點擊率從 ${Mo[0]['期間']} 的 ${pct(ctr0,false)}，降到最近一週的 ${pct(ctr1,false)}，代表舊影片大家看久了。雙 11 會換上新的 KOL 影片${keep.length?'，表現穩定的 '+keep.join('、')+' 會繼續投放':''}${swapC.length?'，'+swapC.map(c=>c.KOL).join('、')+' 的影片會替換或確認授權':''}。`})}
+  const ga=ad.ga;if(ga){const ci=k=>ga.cols.findIndex(c=>c.includes(k));const gi=ci('Google 廣告'),mi=ci('Meta');const cr=ga.rows['轉換率（購買÷進站）']||[],st=ga.rows['平均停留（秒）']||[],vis=ga.rows['進站次數']||[],eng=ga.rows['互動率']||[];
+    if(gi>=0&&mi>=0&&cr[gi]&&cr[mi]!=null&&cr[mi]/cr[gi]<.3)C.push({s:55,t:'Meta 帶來的流量品質差，先修版位與落地頁',b:`GA4（${ga.title}）Meta 廣告進站 ${(vis[mi]||0).toLocaleString()} 次，但平均只停留 ${st[mi]??'—'} 秒、互動率 ${pct(eng[mi],false)}，轉換率 ${(cr[mi]*100).toFixed(2)}%；Google 廣告是 ${(cr[gi]*100).toFixed(2)}%。請代理商排除 Audience Network 等誤點多的版位，廣告直接連到對應商品頁，不要連首頁。`,
+      ct:'調整 Meta 廣告的導流',cb:`Meta 廣告帶進官網的人很多（${(vis[mi]||0).toLocaleString()} 次），但平均只停留 ${st[mi]??'—'} 秒，下單比例比 Google 廣告低不少。我們會調整投放版位，讓廣告直接連到對應的商品頁，提高下單機會。`})}
+  if(ga&&ad.googleAgencyBuy===0){const gi=ga.cols.findIndex(c=>c.includes('Google 廣告'));const buy=(ga.rows['購買（筆）']||[])[gi],rev=(ga.rows['營收']||[])[gi];
+    if(buy)C.push({s:50,t:'Google 廣告有帶單，但轉換追蹤沒接上',b:`代理商報表的 Google 購買是 0，但 GA4 顯示 ${ga.title} Google 廣告帶來 ${buy} 筆、營收 ${$n(rev)}。請代理商把 GA4 購買事件匯入 Google Ads，系統才能用購買來優化出價；修好之前不要因為「購買 0」砍 Google 預算。`,
+      ct:'補強 Google 廣告的購買追蹤',cb:`GA4 顯示 Google 廣告在 ${ga.title} 帶來 ${buy} 筆訂單、營收 ${$n(rev)}，但廣告後台還沒記到這些購買。我們會把購買追蹤接好，讓系統更準確地找到會下單的人。`})}
+  const cpa=Mo.map(m=>n(m['每筆購買成本'])).filter(v=>v);const wcpa=W.length?n(W[W.length-1]['每筆購買成本']):null;
+  if(cpa.length>=2&&cpa[cpa.length-1]<cpa[0])C.push({s:30,t:'Meta 每筆購買成本在下降，雙 11 可以加碼',b:`每筆購買成本 ${Mo.map(m=>m['期間']+' '+$n(m['每筆購買成本'])).join(' → ')}${wcpa?'，最近一週 '+$n(wcpa):''}。雙 11 期間預算往轉換目標、「狗狗背帶」受眾集中。`,
+    ct:'雙 11 廣告加碼',cb:`Meta 每帶來一筆訂單的成本一路下降（${Mo.map(m=>m['期間']+' '+$n(m['每筆購買成本'])).join(' → ')}）。雙 11 期間會把預算集中在「狗狗背帶」受眾和轉換型廣告。`});
+  if(!client){const lastP=W.length?W[W.length-1]['期間']:'';C.push({s:20,t:'請代理商補齊數據',b:`代理商資料只到 ${lastP||'—'}，也沒有購買金額，算不出 ROAS。請代理商每週提供素材明細與購買金額。`})}
+  C.sort((a,b)=>b.s-a.s);return C.slice(0,3)}
+
+/* ================= 畫面：共用 ================= */
+function spark(vals){const v=vals.map(x=>x??0);if(v.length<2)return'';const W=200,H=38,max=Math.max(...v,1),min=Math.min(...v,0);
+  const pts=v.map((x,i)=>[4+i*(W-8)/(v.length-1),H-4-(x-min)/(max-min||1)*(H-10)]);const line=pts.map(p=>p.map(z=>z.toFixed(1)).join(',')).join(' ');const last=pts[pts.length-1];
+  return`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polygon points="4,${H-4} ${line} ${last[0].toFixed(1)},${H-4}" fill="var(--c)" opacity=".12"/><polyline points="${line}" fill="none" stroke="var(--c)" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.2" fill="var(--c)"/></svg>`}
+const adviceList=(A,id,client)=>`<ol class="advice" id="${id}">${A.map(a=>`<li><div class="t" contenteditable="true">${esc(tidy(client?a.ct:a.t))}</div><div class="b" contenteditable="true">${esc(tidy(client?a.cb:a.b))}</div></li>`).join('')}</ol>`;
+function top5Tables(T,limitCols){return PLATS.map(({k,n:nm,c})=>{const L=(T[k]||[]).slice(0,5);return`<div class="top5 blk" style="--c:${c}"><h3>${nm}</h3>${L.length?`<div class="tbl"><table>
+  <thead><tr><th></th><th>商品</th><th class="r">${limitCols?'銷量':'淨銷量'}</th><th class="r">${limitCols?'業績':'淨業績'}</th></tr></thead><tbody>
+  ${L.map((x,i)=>`<tr><td class="rk">${i+1}</td><td>${esc(x.name)}${x.bad&&!limitCols?`<span class="ret">退 ${x.bad}</span>`:''}</td><td class="r num">${x.net??'—'}</td><td class="r num">${$n(x.amt)}</td></tr>`).join('')}
+  </tbody></table></div>`:'<div class="empty">這週沒有 Top 5 資料</div>'}</div>`}).join('')}
+
+function adTables(compact){const ad=MODEL.ads;if(!ad||(!ad.metaWeeks.length&&!ad.ga))return'<div class="empty">Excel 裡沒有廣告資料。</div>';
+  const W=ad.metaWeeks.slice(-3),ga=ad.ga;const pc=v=>v==null||v===''?'—':(n(v)*100).toFixed(1)+'%';
+  const meta=W.length?`<div class="blk"><h3 style="font-size:15px;margin-bottom:4px">Meta 廣告｜最近 ${W.length} 週${ad.agencyName&&!compact?'（代理商：'+esc(ad.agencyName)+'）':''}</h3><div class="tbl"><table>
+    <thead><tr><th>期間</th><th class="r">花費</th><th class="r">點擊率</th>${compact?'':'<th class="r">每次點擊</th><th class="r">加購</th>'}<th class="r">購買</th><th class="r">每筆購買成本</th></tr></thead><tbody>
+    ${W.map(w=>`<tr><td>${esc(w['期間'])}</td><td class="r num">${$n(n(w['廣告花費']))}</td><td class="r num">${pc(w['點擊率'])}</td>${compact?'':`<td class="r num">${n(w['每次點擊成本'])??'—'}</td><td class="r num">${n(w['加入購物車'])??'—'}</td>`}<td class="r num">${n(w['購買'])??'—'}</td><td class="r num">${$n(n(w['每筆購買成本']))}</td></tr>`).join('')}
+    </tbody></table></div></div>`:'';
+  let gat='';if(ga){const R=ga.rows;const f=(k,i,fmt)=>{const v=(R[k]||[])[i];return v==null?'—':fmt(v)};
+    gat=`<div class="blk"><h3 style="font-size:15px;margin-bottom:4px">官網流量來源（GA4｜${esc(ga.title)}）</h3><div class="tbl"><table>
+    <thead><tr><th>來源</th><th class="r">進站</th>${compact?'':'<th class="r">停留</th>'}<th class="r">購買</th><th class="r">營收</th><th class="r">轉換率</th></tr></thead><tbody>
+    ${ga.cols.map((c,i)=>`<tr><td>${esc(c)}</td><td class="r num">${f('進站次數',i,v=>v.toLocaleString())}</td>${compact?'':`<td class="r num">${f('平均停留（秒）',i,v=>v+' 秒')}</td>`}<td class="r num">${f('購買（筆）',i,v=>v)}</td><td class="r num">${f('營收',i,$n)}</td><td class="r num">${f('轉換率（購買÷進站）',i,v=>(v*100).toFixed(2)+'%')}</td></tr>`).join('')}
+    </tbody></table></div></div>`}
+  return`<div class="adgrid">${meta}${gat}</div>`}
+
+/* ================= 週報（內部） ================= */
+function renderWeekly(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advice(w,S);
+  const tot=PLATS.reduce((a,{k})=>a+(S[k].gross||0),0),totNet=PLATS.reduce((a,{k})=>a+(S[k].net||0),0),totPrevNet=PLATS.reduce((a,{k})=>a+(S[k].prevNet||0),0);
+  const totOrd=PLATS.reduce((a,{k})=>a+(S[k].orders||0),0),totBad=PLATS.reduce((a,{k})=>a+S[k].cancel+S[k].ret,0);
+  const lyAll=PLATS.every(({k})=>S[k].ly!=null)?PLATS.reduce((a,{k})=>a+S[k].ly,0):null;const n8=Math.min(8,MODEL.weeks.indexOf(w)+1);
+  $('v-weekly').innerHTML=`<article class="paper" id="weeklyDoc">
+  <div class="head blk"><div><div class="eyebrow">三平台週報｜內部版</div><h1>${wkLabel(w)} 週業績</h1></div><div class="meta">momo · 官網 · 蝦皮<br>資料更新至 ${MODEL.lastDaily||'—'}</div></div>
+  <section class="sec"><h2 class="blk">業績總覽<small>大字＝淨業績（訂購 − 取消 − 退貨）</small></h2>
+    <div class="blk"><div class="total"><div><div class="lbl">三平台淨業績合計</div><div class="v num">${$n(totNet)}</div><div class="sub num">${totOrd} 筆訂單 · 取消＋退貨 ${$n(totBad)}</div></div>
+      <div><div class="lbl">合計 WoW</div>${pill(totPrevNet?totNet/totPrevNet-1:null)}</div>${lyAll?`<div><div class="lbl">合計與去年同期比</div>${pill(tot/lyAll-1)}</div>`:''}</div></div>
+    <div class="plats blk">${PLATS.map(({k,n:nm,c})=>{const s=S[k];return`<article class="plat" style="--c:${c}">
+      <header><h3>${nm}</h3><span class="sub">淨業績</span></header>
+      <div><div class="big num">${$n(s.net)}</div><div class="sub"><span class="num">${s.orders??'—'}</span> 筆訂單 · 取消＋退貨 <span class="num">${$n(s.cancel+s.ret)}</span></div></div>
+      <dl class="kpis"><div><dt>WoW 週成長</dt><dd>${pill(s.wow)}<small>上週淨業績 ${$n(s.prevNet)}</small></dd></div>
+        <div><dt>與去年同期比</dt><dd>${pill(s.yoy)}<small>${s.ly!=null?'去年同週估 '+$n(s.ly):'Excel 沒有去年資料'}</small></dd></div></dl>
+      <div>${spark(s.series)}<div class="spark-cap"><span>近 ${n8} 週淨業績</span><span>本週</span></div></div></article>`}).join('')}</div>
+  </section>
+  <section class="sec"><h2 class="blk">各平台銷售 Top 5<small>依淨業績排序</small></h2><div class="tops">${top5Tables(T,false)}</div></section>
+  <section class="sec"><h2 class="blk">未來操作方向<small>依本週數據自動產生，可直接點文字修改</small></h2><div class="blk">${adviceList(A,'advice',false)}</div></section>
+  <section class="sec"><h2 class="blk">廣告成效與建議<small>資料期間依代理商報表與 GA4，未必和本週對齊</small></h2>${adTables(false)}<div class="blk">${adviceList(adAdvice(false),'adadvice',false)}</div></section>
+  <div class="notes blk"><b>計算方式</b><ul>
+    <li>淨業績＝訂購金額 − 取消金額 − 退貨金額（蝦皮沒有取消、退貨資料，淨業績＝訂購金額）。WoW＝本週淨業績 ÷ 上週淨業績 − 1。</li>
+    <li>與去年同期比：Excel 只有去年的月業績訂購金額，所以用本週訂購金額比去年同週估算值（去年同月 ÷ 當月天數 × 該週在那個月的天數）。蝦皮沒有去年資料。</li>
+    <li>缺貨提醒取自「四、低庫存提醒」；廣告數據取自「廣告代理商數據」與「廣告分析」（GA4）。</li></ul></div>
+</article>`}
+function renderAdsPage(){$('v-ads').innerHTML=`<div class="paper"><section class="sec"><h2>廣告成效<small>Meta 取自代理商報表，官網流量取自 GA4</small></h2>${adTables(false)}</section>
+  <section class="sec"><h2>廣告建議<small>可直接點文字修改</small></h2>${adviceList(adAdvice(false),'adadvice2',false)}</section></div>`}
+
+/* ================= 客戶版 ================= */
+function clientName(){return ls.get('pr.client')||'樂寵 GleePets'}
+function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advice(w,S);const AA=adAdvice(true);
+  const totNet=PLATS.reduce((a,{k})=>a+(S[k].net||0),0),totPrevNet=PLATS.reduce((a,{k})=>a+(S[k].prevNet||0),0),totOrd=PLATS.reduce((a,{k})=>a+(S[k].orders||0),0);
+  const tw=totPrevNet?totNet/totPrevNet-1:null;
+  const best=PLATS.map(p=>p.k).sort((a,b)=>(S[b].net||0)-(S[a].net||0))[0];
+  const yoys=PLATS.filter(({k})=>S[k].yoy!=null).map(({k})=>`${PN[k]}${S[k].yoy>=0?'成長':'少了'} ${pct0(S[k].yoy)}`);
+  let topItem=null;PLATS.forEach(({k})=>(T[k]||[]).forEach(x=>{if(x.amt&&(!topItem||x.amt>topItem.amt))topItem={...x,k}}));
+  const ordUp=PLATS.map(p=>p.k).filter(k=>S[k].orders&&S[k].prevOrders&&S[k].orders/S[k].prevOrders-1>=.15);
+  const HL=[`這週三個平台淨業績合計 <b>${$n(totNet)}</b>、共 ${totOrd} 筆訂單，${tw==null?'':tw>=0?'比上週成長 '+pct0(tw):'比上週少 '+pct0(tw)}。`,
+    `${PN[best]} 是這週業績最好的平台，淨業績 ${$n(S[best].net)}${S[best].wow!=null?'（比上週'+(S[best].wow>=0?'多 ':'少 ')+pct0(S[best].wow)+'）':''}。`];
+  if(ordUp.length)HL.push(`${ordUp.map(k=>`${PN[k]}訂單數從 ${S[k].prevOrders} 筆增加到 ${S[k].orders} 筆`).join('；')}。`);
+  if(yoys.length)HL.push(`和去年同期相比，${yoys.join('、')}。`);
+  if(topItem)HL.push(`這週最熱賣的是 ${PN[topItem.k]} 的「${esc(topItem.name)}」，業績 ${$n(topItem.amt)}。`);
+  const ad=MODEL.ads;const lw=ad&&ad.metaWeeks.length?ad.metaWeeks[ad.metaWeeks.length-1]:null;
+  $('v-client').innerHTML=`<article class="client" id="clientDoc">
+  <div class="chead blk"><div><div class="who" id="cWho">${esc(clientName())}</div><h1>週業績報告｜${wkLabel(w)}</h1></div><div class="meta">momo · 官網 · 蝦皮<br>製表日期 ${iso(Date.now())}</div></div>
+  <section class="sec blk"><h2>這週重點</h2><ul class="hl">${HL.map(h=>`<li contenteditable="true">${tidy(h)}</li>`).join('')}</ul></section>
+  <section class="sec"><h2 class="blk">各平台業績</h2>
+    <div class="ctiles blk">${PLATS.map(({k,n:nm,c})=>{const s=S[k];return`<div class="ctile" style="--c:${c}"><b>${nm}</b><div class="v num">${$n(s.net)}</div>
+      <div class="sub">${s.orders??'—'} 筆訂單 · 比上週 ${pill(s.wow)}</div><div class="sub">比去年同期 ${s.yoy!=null?pill(s.yoy):'—（無去年資料）'}</div></div>`}).join('')}</div></section>
+  <section class="sec"><h2 class="blk">熱賣商品 Top 5</h2><div class="tops">${top5Tables(T,true)}</div></section>
+  <section class="sec"><h2 class="blk">廣告成效</h2>${lw?`<p class="blk" style="margin:0">最近一週（${esc(lw['期間'])}）Meta 廣告花費 ${$n(n(lw['廣告花費']))}，帶來 ${n(lw['購買'])??'—'} 筆購買，平均每筆購買成本 ${$n(n(lw['每筆購買成本']))}。</p>`:''}${adTables(true)}</section>
+  <section class="sec"><h2 class="blk">下週操作方向</h2><div class="blk">${adviceList(A,'cadvice',true)}</div></section>
+  <section class="sec"><h2 class="blk">廣告優化方向</h2><div class="blk">${adviceList(AA,'cadadvice',true)}</div></section>
+  <div class="notes blk">淨業績＝訂購金額扣掉取消和退貨。與去年同期比是用去年同月的平均每日業績估算。廣告數據依廣告後台與 GA4 的統計期間，可能和業績週期不完全一樣。</div>
+</article>`}
+
+/* ================= 總覽 ================= */
+let charts={};
+function cssVar(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function renderOverview(){if(!MODEL)return;const plat=$('fPlat').value;let a=$('fStart').value,b=$('fEnd').value;if(!a||!b)return;let A=parseIso(a),B=parseIso(b);if(A>B){[A,B]=[B,A]}
+  const len=Math.round((B-A)/DAY)+1;const PA=A-len*DAY,PB=A-DAY;
+  $('fCmp').textContent=`比較前期：${iso(PA).slice(5).replace('-','/')}–${iso(PB).slice(5).replace('-','/')}`;
+  const ks=plat==='all'?PLATS.map(p=>p.k):[plat];
+  const sum=(x,y)=>ks.reduce((o,k)=>{const r=rangeSum(k,x,y);for(const f in r)o[f]=(o[f]||0)+r[f];return o},{});
+  const cur=sum(A,B),prv=sum(PA,PB);const ch=(x,y)=>y?x/y-1:null;
+  const aov=cur.orders?cur.gross/cur.orders:null,paov=prv.orders?prv.gross/prv.orders:null;const bad=cur.cancel+cur.ret,pbad=prv.cancel+prv.ret;
+  const tile=(cls,l,v,d,sub)=>`<div class="tile ${cls}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${d!==undefined?pill(d)+' <span>比前期</span>':''}${sub?`<span>${sub}</span>`:''}</div></div>`;
+  $('tiles').innerHTML=tile('t1','淨業績',$n(cur.net),ch(cur.net,prv.net))+tile('t2','訂單數',cur.orders.toLocaleString(),ch(cur.orders,prv.orders))+
+    tile('t3','客單價',$n(aov),ch(aov,paov))+tile('t4','取消＋退貨',$n(bad),undefined,cur.gross?`占訂購 ${pct(bad/cur.gross,false)}・前期 ${$n(pbad)}`:'');
+  const days=[];for(let t=A;t<=B;t+=DAY)days.push(t);
+  const ink=cssVar('--muted'),grid=cssVar('--line');const col={momo:cssVar('--momo'),web:cssVar('--web'),shopee:cssVar('--shopee')};
+  const dayNet=(k,t)=>{const d=(MODEL.daily[k]||{})[iso(t)];return d?(d.net??((d.gross||0)-(d.cancel||0)-(d.ret||0))):null};
+  const base={responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:ink,usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label:c=>`${c.dataset.label}：${$n(c.parsed.y)}`}}},
+    scales:{x:{ticks:{color:ink},grid:{color:grid}},y:{beginAtZero:true,ticks:{color:ink,callback:v=>v.toLocaleString()},grid:{color:grid}}}};
+  if(window.Chart){Chart.defaults.font.family=cssVar('--f-body');
+    charts.t&&charts.t.destroy();charts.t=new Chart($('cTrend'),{type:'line',data:{labels:days.map(t=>iso(t).slice(5).replace('-','/')),
+      datasets:ks.map(k=>({label:PN[k],data:days.map(t=>dayNet(k,t)),borderColor:col[k],backgroundColor:col[k],tension:.35,pointRadius:3,borderWidth:2.5}))},options:base});
+    const pk=PLATS.map(p=>p.k);
+    charts.p&&charts.p.destroy();charts.p=new Chart($('cPlat'),{type:'bar',data:{labels:pk.map(k=>PN[k]),datasets:[
+      {label:'前期',data:pk.map(k=>rangeSum(k,PA,PB).net),backgroundColor:cssVar('--line'),borderColor:ink,borderWidth:1,borderRadius:6},
+      {label:'本期',data:pk.map(k=>rangeSum(k,A,B).net),backgroundColor:pk.map(k=>col[k]),borderRadius:6}]},options:base})}
+  const wd='日一二三四五六';
+  $('dailyTbl').innerHTML=`<table><thead><tr><th>日期</th>${PLATS.map(p=>`<th class="r">${p.n}</th>`).join('')}<th class="r">合計</th></tr></thead><tbody>
+    ${days.map(t=>{const v=PLATS.map(p=>dayNet(p.k,t));return`<tr><td>${iso(t).slice(5).replace('-','/')}（${wd[new Date(t).getUTCDay()]}）</td>${v.map(x=>`<td class="r num">${x==null?'—':$n(x)}</td>`).join('')}<td class="r num">${$n(v.reduce((a,x)=>a+(x||0),0))}</td></tr>`}).join('')}</tbody>
+    <tfoot><tr><td>合計</td>${PLATS.map(p=>`<td class="r num">${$n(rangeSum(p.k,A,B).net)}</td>`).join('')}<td class="r num">${$n(PLATS.reduce((a,p)=>a+rangeSum(p.k,A,B).net,0))}</td></tr></tfoot></table>`}
+
+/* ================= 路由與狀態 ================= */
+const VIEWS={overview:'總覽',weekly:'週報（內部版）',ads:'廣告成效',client:'客戶版報告',source:'資料管理'};
+function view(){const h=location.hash.slice(1);return VIEWS[h]?h:'overview'}
+function route(){const v=view();Object.keys(VIEWS).forEach(k=>{$('v-'+k).hidden=k!==v});
+  document.querySelectorAll('.nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+v?'page':'false'));
+  $('pgTitle').textContent=VIEWS[v];$('week').hidden=!['weekly','client'].includes(v)||!MODEL;
+  $('pdfBtn').hidden=!['weekly','client'].includes(v)||!MODEL;$('pdfBtn').querySelector('span').textContent=v==='client'?'匯出客戶版 PDF':'匯出內部版 PDF';
+  renderView()}
+function renderView(){if(!MODEL)return;const v=view();const w=$('week').value;
+  if(v==='overview')renderOverview();else if(v==='weekly'&&w)renderWeekly(w);else if(v==='ads')renderAdsPage();else if(v==='client'&&w)renderClient(w)}
+function note(msg,kind){const el=$('note');if(!msg){el.hidden=true;return}el.textContent=msg;el.className='note'+(kind?' '+kind:'');el.hidden=false}
+function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,2600)}
+function stamp(ts,ok){$('updated').textContent=ts?'更新於 '+new Date(ts).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';$('dot').className='dot '+(ok?'ok':'warn')}
+
+function load(model,{fresh}={}){MODEL=model;window.__model=model;
+  const has=w=>PLATS.some(({k})=>(model.weekly[k][w]||{}).gross);const latest=[...model.weeks].reverse().find(has)||model.weeks[model.weeks.length-1];
+  const prev=$('week').value;$('week').innerHTML=[...model.weeks].reverse().map(w=>`<option value="${w}">${wkLabel(w)}${w===latest?'（最新）':''}</option>`).join('');
+  $('week').value=model.weeks.includes(prev)&&!fresh?prev:latest;
+  const all=Object.values(model.daily).flatMap(o=>Object.keys(o)).sort();
+  if(all.length){$('fStart').min=$('fEnd').min=all[0];$('fStart').max=$('fEnd').max=all[all.length-1];
+    if(fresh||!$('fStart').value){const ws=latest?weekStart(latest,model):parseIso(all[all.length-1])-6*DAY;$('fStart').value=iso(ws);$('fEnd').value=iso(Math.min(ws+6*DAY,parseIso(all[all.length-1])))}}
+  stamp(model.fetchedAt,true);route()}
+
+/* ================= Google Drive 重新整理 ================= */
+function fileId(){return ls.get('pr.fileId')||DEFAULT_FILE}
+function idFromLink(s){s=s.trim();const m=s.match(/\/d\/([\w-]{20,})/)||s.match(/[?&]id=([\w-]{20,})/);return m?m[1]:(/^[\w-]{20,}$/.test(s)?s:null)}
+let mcpP=null;function getMcp(){if(!window.claude||!claude.use)return Promise.resolve(null);return mcpP??=claude.use('mcp').catch(()=>null)}
+async function refreshDrive(manual){const btn=$('refresh');if(btn.classList.contains('busy'))return;btn.classList.add('busy');
+  try{const mcp=await getMcp();
+    if(!mcp){if(manual)note('這個畫面連不到 Google Drive。請到「資料管理」上傳 Excel，或在 claude.ai 開啟這個儀表板。','err');return}
+    note('正在從 Google Drive 讀取最新資料…');
+    const call=()=>mcp.callTool('Google Drive','download_file_content',{fileId:fileId()},{cache:false});
+    let r;try{r=await call()}catch(e){if(e&&e.retryable){await new Promise(z=>setTimeout(z,Math.min(e.retryAfterMs||1500,8000)+Math.random()*500));r=await call()}else throw e}
+    let p=r.payload;if(typeof p==='string'){try{p=JSON.parse(p)}catch(e){}}
+    const b64=p&&p.content;if(typeof b64!=='string'||!b64)throw{code:'shape'};
+    const m=parseWorkbook(XLSX.read(b64,{type:'base64'}));m.fetchedAt=Date.now();m.source=p.title||'Google Drive';
+    if(!m.weeks.length)throw{code:'nodata'};
+    load(m,{fresh:true});ls.set('pr.model',JSON.stringify(m));note(`已從 Google Drive 更新「${m.source}」：資料到 ${m.lastDaily||'—'}，共 ${m.weeks.length} 週。`,'ok');setTimeout(()=>note(''),6000)
+  }catch(e){const c=e&&e.code;const M={
+      needs_reauth:'Google Drive 的連線過期了。請到 claude.ai「設定 → Connectors」重新連接 Google Drive，再按一次重新整理。',
+      server_not_connected:'還沒連接 Google Drive。請到 claude.ai「設定 → Connectors」加入 Google Drive，再按一次重新整理。',
+      selection_required:'你有不只一個 Google Drive 連線，請在跳出的視窗選一個，再按一次重新整理。',
+      not_in_manifest:'這個頁面還沒被允許讀取 Google Drive。按一次重新整理，在跳出的視窗選「允許」。',
+      approval_required:'需要你允許這個頁面讀取 Google Drive。按一次重新整理，在跳出的視窗選「允許」。',
+      consent_required:'需要你允許這個頁面讀取 Google Drive。按一次重新整理，在跳出的視窗選「允許」。',
+      blocked_by_policy:'你的組織政策不允許這個頁面讀取 Google Drive。請改用「資料管理」上傳 Excel。',
+      tool_error:'Google Drive 找不到這個檔案，或你沒有權限。請到「資料管理」確認檔案連結。',
+      shape:'讀到的檔案不是 Excel 格式。請到「資料管理」確認連結指向業績 Excel。',
+      nodata:'這個檔案裡找不到「一週業績」資料，請確認是同一份業績 Excel。',
+      server_unavailable:'Google Drive 暫時連不上，過一下再按重新整理。'};
+    note(M[c]||'讀取 Google Drive 時發生問題，過一下再按重新整理；也可以到「資料管理」上傳 Excel。','err');stamp(MODEL&&MODEL.fetchedAt,false)}
+  finally{btn.classList.remove('busy')}}
+
+/* ================= PDF ================= */
+async function saveFile(blob,name){
+  if(window.claude&&claude.use){const d=await claude.use('downloads').catch(()=>null);
+    if(d){try{await d.save({filename:name,data:blob});toast('PDF 已存好');return}catch(e){if(e&&e.code==='declined'){toast('已取消下載');return}if(e&&e.code==='rate_limited'){toast('上一個下載視窗還開著，等一下再試');return}}}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast('PDF 已下載')}
+async function buildPdf(src){const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:'pt',format:'a4'});const PW=pdf.internal.pageSize.getWidth(),PH=pdf.internal.pageSize.getHeight(),M=30,W=PW-2*M;
+  const host=document.createElement('div');host.className='pdfhost';host.appendChild(src.cloneNode(true));document.body.appendChild(host);
+  host.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
+  try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const blocks=[...host.querySelectorAll('.blk')].filter(b=>!b.parentElement.closest('.blk'));const imgs=[];
+    for(const b of blocks){const c=await html2canvas(b,{scale:2,backgroundColor:'#ffffff',logging:false});if(!c.width||!c.height)continue;
+      let w=W,h=c.height*W/c.width;if(h>PH-2*M){w=w*(PH-2*M)/h;h=PH-2*M}imgs.push({c,w,h,head:b.tagName==='H2'})}
+    let y=M;imgs.forEach((im,i)=>{const need=im.head&&imgs[i+1]?im.h+8+imgs[i+1].h:im.h;
+      if(y+need>PH-M&&y>M){pdf.addPage();y=M}
+      pdf.addImage(im.c.toDataURL('image/jpeg',.92),'JPEG',M,y,im.w,im.h);y+=im.h+8});
+    const pages=pdf.getNumberOfPages();pdf.setFontSize(8);pdf.setTextColor(150);for(let i=1;i<=pages;i++){pdf.setPage(i);pdf.text(`${i} / ${pages}`,PW-M,PH-14,{align:'right'})}
+    return pdf.output('blob')}finally{host.remove()}}
+async function exportPdf(){const v=view();const w=$('week').value;const src=$(v==='client'?'clientDoc':'weeklyDoc');if(!src)return;
+  const btn=$('pdfBtn');btn.disabled=true;const lab=btn.querySelector('span');const old=lab.textContent;lab.textContent='產生中…';
+  try{if(!window.jspdf||!window.html2canvas)throw new Error('lib');const blob=await buildPdf(src);window.__lastPdf=blob;
+    await saveFile(blob,`${v==='client'?clientName()+'_週業績報告':'三平台週報_內部版'}_${w.replace(/\//g,'')}.pdf`)}
+  catch(e){note('PDF 產生失敗，請重新整理頁面後再試一次。','err')}finally{btn.disabled=false;lab.textContent=old}}
+
+/* ================= 事件 ================= */
+window.addEventListener('hashchange',route);
+$('week').addEventListener('change',renderView);
+['fPlat','fStart','fEnd'].forEach(id=>$(id).addEventListener('change',renderOverview));
+$('refresh').addEventListener('click',()=>refreshDrive(true));
+$('pdfBtn').addEventListener('click',exportPdf);
+$('fileLink').value=ls.get('pr.fileLink')||`https://docs.google.com/spreadsheets/d/${fileId()}/edit`;
+$('clientName').value=clientName();
+$('saveLink').addEventListener('click',()=>{const id=idFromLink($('fileLink').value);if(!id){note('看不懂這個連結，請貼上 Google 試算表或 Drive 的檔案網址。','err');return}
+  ls.set('pr.fileId',id);ls.set('pr.fileLink',$('fileLink').value.trim());refreshDrive(true)});
+$('saveClient').addEventListener('click',()=>{ls.set('pr.client',$('clientName').value.trim()||'樂寵 GleePets');toast('已儲存客戶名稱');renderView()});
+function readFile(f){if(!f)return;const fr=new FileReader();fr.onload=e=>{try{const m=parseWorkbook(XLSX.read(new Uint8Array(e.target.result),{type:'array'}));if(!m.weeks.length)throw 0;m.source=f.name;
+  load(m,{fresh:true});ls.set('pr.model',JSON.stringify(m));note(`已讀取「${f.name}」：資料到 ${m.lastDaily||'—'}，共 ${m.weeks.length} 週。`,'ok')}catch(err){note('讀不了這個檔案：請確認是同一份業績 Excel（.xlsx）。','err')}};fr.readAsArrayBuffer(f)}
+$('file').addEventListener('change',e=>readFile(e.target.files[0]));
+const dz=$('dz');['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over')}));
+['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over')}));dz.addEventListener('drop',e=>readFile(e.dataTransfer.files[0]));
+
+/* ================= 啟動 ================= */
+(function boot(){let m=null;try{m=JSON.parse(ls.get('pr.model')||'null')}catch(e){}
+  let seed=null;try{seed=JSON.parse($('seed').textContent.replace('/*SEED*/',''))}catch(e){}
+  if(seed&&(!m||!m.daily||(seed.fetchedAt||0)>(m.fetchedAt||0)))m=seed;
+  if(m){load(m);stamp(m.fetchedAt,false)}else{note('還沒有資料。按左下角「重新整理」從 Google Drive 讀取，或到「資料管理」上傳 Excel。');route()}
+  getMcp().then(x=>{if(x)refreshDrive(false)});
+})();
+</script>

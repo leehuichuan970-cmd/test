@@ -149,6 +149,9 @@ td.rk{font-family:var(--f-num);font-weight:700;color:var(--c);width:1.6em}
 .editbar .sub{flex:1 1 260px}
 .estat{font-size:13px;color:var(--muted)}.estat.ok{color:var(--up)}.estat.warn{color:var(--t3-ink)}
 .extra{min-height:3.2em;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;white-space:pre-wrap}
+.eimgs{display:flex;flex-direction:column;gap:10px}
+.eimg{margin:0;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.eimg img{max-width:100%;border-radius:8px;border:1px solid var(--line)}
 .extra:empty::before{content:attr(data-ph);color:var(--muted)}
 .pdfhost .extra{border:0;padding:0}
 #clientDoc [contenteditable]:hover{background:var(--chip);border-radius:4px}
@@ -581,41 +584,57 @@ function renderClient(w){const S=stats(w);const T=MODEL.top5[w]||{};const A=advi
   if(topItem)HL.push(`三平台熱賣第一：${PN[topItem.k]}「${esc(topItem.name)}」${$n(topItem.amt)}。`);
   $('v-client').innerHTML=`<div class="editbar"><span class="sub">點文字就能修改；改完按「儲存修改」，下次打開會保留。</span><span class="estat" id="eStat"></span><button class="btn" id="eReset" type="button">還原自動內容</button><button class="btn primary" id="eSave" type="button">儲存修改</button></div>
   <article class="client" id="clientDoc">
-  <div class="chead blk"><div><div class="who" id="cWho" contenteditable="true">${esc(clientName())}</div><h1 contenteditable="true">週業績報告｜${wkLabel(w)}</h1></div><div class="meta">momo · 官網 · 蝦皮<br>製表日期 ${iso(Date.now())}</div></div>
-  <section class="sec blk"><h2>這週重點</h2><div class="hl" contenteditable="true">${esc(HL.map(h=>tidy(h).replace(/<[^>]+>/g,'')).join('\n'))}</div></section>
+  <div class="chead blk"><div><div class="who" id="cWho" data-ek="who" contenteditable="true">${esc(clientName())}</div><h1 data-ek="title" contenteditable="true">週業績報告｜${wkLabel(w)}</h1></div><div class="meta">momo · 官網 · 蝦皮<br>製表日期 ${iso(Date.now())}</div></div>
+  <section class="sec blk"><h2>這週重點</h2><div class="hl" data-ek="hl" contenteditable="true">${esc(HL.map(h=>tidy(h).replace(/<[^>]+>/g,'')).join('\n'))}</div></section>
   <section class="sec"><h2 class="blk">各平台業績</h2>
     <div class="ctiles blk">${PLATS.map(({k,n:nm,c})=>{const s=S[k];return`<div class="ctile" style="--c:${c}"><b>${nm}</b><div class="v num">${$n(s.net)}</div>
       <div class="sub">${s.orders??'—'} 筆訂單 · 比上週 ${pill(s.wow)}</div><div class="sub">比去年同期 ${s.yoy!=null?pill(s.yoy):'—（無去年資料）'}</div></div>`}).join('')}</div></section>
   <section class="sec"><h2 class="blk">熱賣商品 Top 5</h2><div class="tops">${top5Tables(T,true)}</div></section>
   <section class="sec"><h2 class="blk">營運建議</h2>${opsNotes(w,false,'cn')?`<div class="notegrid">${opsNotes(w,false,'cn')}</div>`:`<div class="blk">${plainAdvice(A,'cadvice')}</div>`}</section>
   <section class="sec"><h2 class="blk">廣告成效與建議</h2>${adBlocks(true,true)}</section>
-  <section class="sec blk opt" id="cExtraSec"><h2>其他建議</h2><div class="extra" id="cExtra" contenteditable="true" data-ph="點這裡輸入其他建議（沒有寫就不會出現在 PDF）"></div></section>
-  <div class="notes blk" contenteditable="true">淨業績＝訂購扣除取消、退貨；去年同期以月平均估算；廣告數據期間依各後台。</div>
+  <section class="sec blk opt" id="cExtraSec"><h2>其他建議</h2><div class="extra" id="cExtra" contenteditable="true" data-ph="點這裡輸入其他建議（沒有寫就不會出現在 PDF）"></div><div class="eimgs" id="cImgs"></div><label class="btn noprint" for="eImgIn" style="align-self:flex-start">＋ 上傳圖片<input type="file" id="eImgIn" accept="image/*" multiple hidden></label></section>
+  <div class="notes blk" data-ek="notes" contenteditable="true">淨業績＝訂購扣除取消、退貨；去年同期以月平均估算；廣告數據期間依各後台。</div>
 </article>`;
   initEdits(w)}
 
 /* ================= 客戶版：編輯與存檔 ================= */
+// 存檔以「區塊」為單位（每個可編輯區塊有固定代號），之後資料更新也不會蓋掉已存的文字
 let dbP=null;function getDb(){if(!window.claude||!claude.use)return Promise.resolve(null);return dbP??=claude.use('db').catch(()=>null)}
+let asP=null;function getAssets(){if(!window.claude||!claude.use)return Promise.resolve(null);return asP??=claude.use('assets').catch(()=>null)}
 const editId=w=>'w'+w.replace(/[^0-9]+/g,'-');
+let IMGS=[];
 function eStat(t,kind){const s=$('eStat');if(s){s.textContent=t;s.className='estat'+(kind?' '+kind:'')}}
-function editables(){return[...document.querySelectorAll('#clientDoc [contenteditable]')].filter(e=>e.id!=='cExtra')}
-async function readSaved(w){const db=await getDb();if(db){try{const s=await db.doc('edits/'+editId(w)).get();return s.exists?s.data():null}catch(e){}}
+const ekey=e=>e.dataset.ek||e.id;
+function editables(){return[...document.querySelectorAll('#clientDoc [contenteditable]')].filter(e=>e.id!=='cExtra'&&ekey(e))}
+const readTxt=e=>e.innerText.replace(/\n+$/,'');
+async function readSaved(w){const db=await getDb();if(db){try{const s=await db.doc('edits/'+editId(w)).get();if(s.exists)return s.data()}catch(e){}}
   try{return JSON.parse(ls.get('pr.edit.'+editId(w))||'null')}catch(e){return null}}
-async function initEdits(w){const doc=$('clientDoc');if(!doc)return;editables().forEach(e=>e.dataset.orig=e.textContent);
+function renderImgs(){const box=$('cImgs');if(!box)return;box.innerHTML=IMGS.map((im,i)=>`<figure class="eimg"><img src="${esc(im.url)}" alt="其他建議圖片 ${i+1}"><button class="btn noprint" type="button" data-del="${i}">刪除圖片</button></figure>`).join('');
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{IMGS.splice(+b.dataset.del,1);renderImgs();eStat('有未儲存的修改','warn')})}
+async function addImages(files){const as=await getAssets();
+  for(const f of files){if(!/^image\//.test(f.type))continue;
+    if(as){try{const r=await as.upload(f);IMGS.push({id:r.id,url:r.url});continue}catch(e){eStat('圖片上傳失敗：'+(e&&e.message||'請再試一次'),'warn');continue}}
+    const url=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(f)});IMGS.push({url,local:true})}
+  renderImgs();eStat(as?'圖片已上傳，記得按「儲存修改」':'這個畫面不能存圖片，只會出現在這次匯出的 PDF','warn')}
+async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];
+  editables().forEach(e=>e.dataset.orig=e.textContent);
   doc.addEventListener('input',()=>eStat('有未儲存的修改','warn'));
   $('eSave').onclick=()=>saveEdits(w);$('eReset').onclick=()=>resetEdits(w);
+  $('eImgIn').onchange=e=>{addImages([...e.target.files]);e.target.value=''};
   const d=await readSaved(w);if(!d||$('week').value!==w||!$('clientDoc'))return;
-  let miss=0;const items=Array.isArray(d.items)?d.items:[];
-  items.forEach(it=>{const el=editables().find(e=>e.dataset.orig===it.o);if(el)el.textContent=String(it.t??'');else miss++});
+  const when=d.savedAt?new Date(d.savedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  if(d.v===2&&d.fields){editables().forEach(e=>{const k=ekey(e);if(typeof d.fields[k]==='string')e.textContent=d.fields[k]})}
+  else if(Array.isArray(d.items)){d.items.forEach(it=>{const el=editables().find(e=>e.dataset.orig===it.o);if(el)el.textContent=String(it.t??'')})}
   if(typeof d.extra==='string')$('cExtra').textContent=d.extra;
-  eStat(`已載入 ${d.savedAt?new Date(d.savedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):''} 的存檔${miss?`（${miss} 項因資料更新對不上，未套用）`:''}`,'ok')}
+  IMGS=Array.isArray(d.images)?d.images.filter(x=>x&&typeof x.url==='string'):[];renderImgs();
+  eStat(`已載入 ${when} 的存檔`,'ok')}
 async function saveEdits(w){const btn=$('eSave');btn.disabled=true;
-  const items=editables().filter(e=>e.textContent!==e.dataset.orig).map(e=>({o:e.dataset.orig,t:e.textContent}));
-  const data={items,extra:$('cExtra').textContent.trim(),savedAt:Date.now()};
-  try{const db=await getDb();let where='這台電腦的瀏覽器';
-    if(db){try{await db.doc('edits/'+editId(w)).set(data);where='網站'}catch(e){where=null}}
+  const fields={};editables().forEach(e=>fields[ekey(e)]=readTxt(e));
+  const data={v:2,fields,extra:readTxt($('cExtra')).trim(),images:IMGS.filter(x=>!x.local),savedAt:Date.now()};
+  try{const db=await getDb();let ok=false;
+    if(db){try{await db.doc('edits/'+editId(w)).set(data);ok=true}catch(e){}}
     ls.set('pr.edit.'+editId(w),JSON.stringify(data));
-    eStat(where?`已儲存到${where}（${items.length+(data.extra?1:0)} 處修改）`:'網站存檔失敗，先存在這台電腦；請稍後再按一次儲存',where?'ok':'warn')}
+    eStat(ok?'已儲存到網站，之後更新資料也會保留這份內容':db?'網站存檔失敗，先存在這台電腦；請稍後再按一次儲存':'已儲存在這台電腦的瀏覽器',ok||!db?'ok':'warn')}
   finally{btn.disabled=false}}
 async function resetEdits(w){try{const db=await getDb();if(db)await db.doc('edits/'+editId(w)).delete()}catch(e){}
   try{localStorage.removeItem('pr.edit.'+editId(w))}catch(e){}renderClient(w);eStat('已還原成自動產生的內容','ok')}
@@ -713,7 +732,9 @@ async function buildPdf(src){const {jsPDF}=window.jspdf;const pdf=new jsPDF({uni
   const host=document.createElement('div');host.className='pdfhost';host.appendChild(src.cloneNode(true));document.body.appendChild(host);
   host.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));
   try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;
-    host.querySelectorAll('.opt').forEach(o=>{const x=o.querySelector('.extra');if(x&&!x.textContent.trim())o.remove()});
+    host.querySelectorAll('.noprint').forEach(x=>x.remove());
+    host.querySelectorAll('.opt').forEach(o=>{const x=o.querySelector('.extra');if(x&&!x.textContent.trim()&&!o.querySelector('img'))o.remove();else if(x&&!x.textContent.trim())x.remove()});
+    await Promise.all([...host.querySelectorAll('img')].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r})));
     const blocks=[...host.querySelectorAll('.blk')].filter(b=>!b.parentElement.closest('.blk'));const imgs=[];
     for(const b of blocks){const c=await html2canvas(b,{scale:2,backgroundColor:'#ffffff',logging:false});if(!c.width||!c.height)continue;
       let w=W,h=c.height*W/c.width;if(h>PH-2*M){w=w*(PH-2*M)/h;h=PH-2*M}imgs.push({c,w,h,head:b.tagName==='H2'||b.classList.contains('adsub')})}

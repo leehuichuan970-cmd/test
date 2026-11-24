@@ -534,9 +534,8 @@ const EXTRA_NOTES={'10/26-11/1':{meta:['目前投放中的是「胸背帶套組�
       '- 波哥影片 → Pro 單品頁（請代理商確認款式）',
       '- 貝果輪播 → Air 單品頁',
       '2. LED 套組素材導到的頁面：最上方寫清楚「任一款胸背帶＋牽繩送 LED」，胸背帶、牽繩放第一排',
-      '3. /collections/harness：第一個商品在第 3,527px（約第 4 個畫面），商品移到最上方；排序沙灰→檸檬黃→摩卡棕（目前太陽橘排第一）',
-      '4. /collections/dog-fiboo（11 月優惠頁）：排序「A→Z」改「最暢銷」；BN 拿掉過期的 11/11–13 免運，只放「滿 3,000 折 300」',
-      '5. 商品頁：尺寸按鈕旁加尺寸指南；加其他顏色連結（目前每色獨立商品、無法切換）；加評價',
+      '3. /collections/dog-fiboo（11 月優惠頁）：排序「A→Z」改「最暢銷」；BN 拿掉過期的 11/11–13 免運，只放「滿 3,000 折 300」',
+      '4. 商品頁：尺寸按鈕旁加尺寸指南；加其他顏色連結（目前每色獨立商品、無法切換）；加評價',
       '追蹤目標（改完一週）：落地頁加購率 4% 以上、轉換率 1% 以上、Meta 每筆購買成本降回 555 以下']},
     momo:['建議用 KOL 曝光（貼文、限動導購 momo 賣場）向 momo 交換站內曝光版位。']}};
 // 只留要做的事：已完成、單純描述現況的句子歸到備註
@@ -678,7 +677,7 @@ async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];IMG_
   sec.addEventListener('drop',e=>{const fs=[...(e.dataTransfer&&e.dataTransfer.files||[])];if(fs.length){e.preventDefault();addImages(fs)}});
   const {d,db}=await readSaved(w);if(!d||$('week').value!==w||!$('clientDoc'))return;
   const when=d.savedAt?new Date(d.savedAt).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-  if(d.v===2&&d.fields){editables().forEach(e=>{const k=ekey(e);if(typeof d.fields[k]==='string')e.textContent=d.fields[k]})}
+  if(d.v===2&&d.fields){const O=d.origs||{};editables().forEach(e=>{const k=ekey(e);if(typeof d.fields[k]!=='string')return;if(typeof O[k]==='string'&&O[k]===d.fields[k])return;e.textContent=d.fields[k]})}
   else if(Array.isArray(d.items)){d.items.forEach(it=>{const el=editables().find(e=>e.dataset.orig===it.o);if(el)el.textContent=String(it.t??'')})}
   if(typeof d.extra==='string')$('cExtra').textContent=d.extra;
   const keys=Array.isArray(d.imgKeys)?d.imgKeys.filter(k=>typeof k==='string'):[];
@@ -688,11 +687,11 @@ async function initEdits(w){const doc=$('clientDoc');if(!doc)return;IMGS=[];IMG_
     if(typeof url==='string'&&url.startsWith('data:image/'))IMGS.push({key:k,url,saved:true})}
   renderImgs();eStat(`已載入 ${when} 的存檔${keys.length?`（${IMGS.length} 張圖片）`:''}`,'ok')}
 async function saveEdits(w){const btn=$('eSave');btn.disabled=true;eStat('儲存中…');
-  const fields={};editables().forEach(e=>fields[ekey(e)]=readTxt(e));
+  const fields={},origs={};editables().forEach(e=>{fields[ekey(e)]=readTxt(e);origs[ekey(e)]=(e.dataset.orig||'').replace(/\n+$/,'')});
   try{const db=await getDb();let failImg=0;
     for(const im of IMGS.filter(x=>!x.saved)){try{if(db)await db.doc(imgDoc(w,im.key)).set({data:im.url,week:w});else ls.set('pr.img.'+editId(w)+'-'+im.key,im.url);im.saved=true}catch(e){failImg++}}
     for(const k of IMG_DEL){try{if(db)await db.doc(imgDoc(w,k)).delete();else localStorage.removeItem('pr.img.'+editId(w)+'-'+k)}catch(e){}}IMG_DEL=[];
-    const data={v:2,fields,extra:readTxt($('cExtra')).trim(),imgKeys:IMGS.filter(x=>x.saved).map(x=>x.key),savedAt:Date.now()};
+    const data={v:2,fields,origs,extra:readTxt($('cExtra')).trim(),imgKeys:IMGS.filter(x=>x.saved).map(x=>x.key),savedAt:Date.now()};
     let ok=false;if(db){try{await db.doc('edits/'+editId(w)).set(data);ok=true}catch(e){}}
     ls.set('pr.edit.'+editId(w),JSON.stringify(data));
     if(!(db&&!ok))DIRTY=false;

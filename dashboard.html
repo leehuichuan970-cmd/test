@@ -519,13 +519,31 @@ const EXTRA_NOTES={'10/26-11/1':{meta:['目前投放中的是「胸背帶套組�
       '-檔期預算：建議 11/10–11/13 搭配免運集中預算，11/25–11/30 再推「滿額活動最後一週」。'],
     google:['-請代理商先修好購買轉換追蹤（連兩個月都是 0），並把 GA4 連上 Google Ads，系統才能依「購買」自動調整出價。',
       '-雙11 期間每次點擊成本從 7.63 漲到 9.23，建議預算集中在「寵物胸背帶 推薦」「丹麥犬」這類高意圖關鍵字和品牌字。',
-      '-建議評估開「購物廣告」，讓商品圖和價格直接出現在搜尋結果。']}};
+      '-建議評估開「購物廣告」，讓商品圖和價格直接出現在搜尋結果。']},
+  // 11/16-11/22：官網建議依使用者指示改寫（整段取代週報頁籤內容）；momo 追加一點
+  '11/16-11/22':{
+    web:{replace:['落地頁調整：',
+      '1. 廣告連結依素材改導：',
+      '- 咪吉影片 → Air 胸背帶單品頁',
+      '- 胖大叔影片 → Pro 胸背帶單品頁',
+      '- 本丸影片 → 影片中那款的單品頁（請代理商確認是 Pro 或 Air）',
+      '- 苦瓜、托托&醬醬、柴犬小宅等流量型影片 → /collections/harness',
+      '- 背帶＋牽繩送散步燈單圖 → LED 套組活動頁',
+      '- 滿 3,000 折 300 素材 → /collections/dog-fiboo（11 月優惠頁）',
+      '2. LED 套組素材導到的頁面：最上方寫清楚「任一款胸背帶＋牽繩送 LED」，胸背帶、牽繩放第一排',
+      '3. /collections/harness：第一個商品在第 3,527px（約第 4 個畫面），商品移到最上方；排序沙灰→檸檬黃→摩卡棕（目前太陽橘排第一）',
+      '4. /collections/dog-fiboo（11 月優惠頁）：排序「A→Z」改「最暢銷」；BN 拿掉過期的 11/11–13 免運，只放「滿 3,000 折 300」',
+      '5. 商品頁：尺寸按鈕旁加尺寸指南；加其他顏色連結（目前每色獨立商品、無法切換）；加評價',
+      '追蹤目標（改完一週）：落地頁加購率 4% 以上、轉換率 1% 以上、Meta 每筆購買成本降回 555 以下']},
+    momo:['建議用 KOL 曝光（貼文、限動導購 momo 賣場）向 momo 交換站內曝光版位。']}};
 // 只留要做的事：已完成、單純描述現況的句子歸到備註
 const ACT=/確認|建議|請|發|強調|注意|需|要|可在|可以|檢查|查|改|加|降|暫停|新增|移到|排序|放|拿掉|提品|追蹤|目標|待|不要|測試|安排|補|開|選|調整|提供|連結|預告|處理/;
 const DONE=/已(補|改|完成|上架|上線|設定|是|排除|處理|下架|開|調整|更新|寄|發)/;
 const isTodo=x=>{const y=x.replace(/^[-–\s]+/,'');if(/^\d+[.、]/.test(y))return true;return !(DONE.test(y)&&!/^(確認|建議|請|注意)/.test(y))&&ACT.test(y)};
 function weekNotes(w){const N=(MODEL.notes||{})[w];const E=EXTRA_NOTES[w];if(!N&&!E)return null;const out={};
-  new Set([...Object.keys(N||{}),...Object.keys(E||{})]).forEach(k=>{const o=(N||{})[k]||{sum:[],todo:[]};const all=[...((E||{})[k]||[]),...o.todo];
+  new Set([...Object.keys(N||{}),...Object.keys(E||{})]).forEach(k=>{const o=(N||{})[k]||{sum:[],todo:[]};const ek=(E||{})[k];
+    if(ek&&ek.replace){out[k]={sum:o.sum,todo:ek.replace,memo:[]};return}
+    const all=[...(Array.isArray(ek)?ek:[]),...o.todo];
     out[k]={sum:o.sum,todo:all.filter(isTodo),memo:all.filter(x=>!isTodo(x))}});return out}
 function noteCard(k,o,withSum,id){if(!o||(!o.todo.length&&!(withSum&&o.sum.length)))return'';
   const sum=withSum?[...o.sum,...(o.memo||[]).map(x=>'備註：'+x)]:[];
